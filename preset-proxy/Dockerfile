@@ -5,6 +5,6 @@ COPY app.py /app/app.py
 COPY static /app/static
 
 ENV PYTHONUNBUFFERED=1
-EXPOSE 8788
+EXPOSE 8092
 
 CMD ["python", "/app/app.py"]

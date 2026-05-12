@@ -25,11 +25,11 @@ DEFAULT_CONFIG = {
     }
 }
 
-config_lock = threading.Lock()
+config_lock = threading.RLock()
 config = None
 
-SPEAKER_IP = os.getenv("SPEAKER_IP", "10.10.10.26")
-BASE_URL = os.getenv("BASE_URL", "http://10.10.10.85:8788")
+SPEAKER_IP = os.getenv("SPEAKER_IP", "")
+BASE_URL = os.getenv("BASE_URL", "http://127.0.0.1:8092")
 BUFFER_SECONDS = int(os.getenv("BUFFER_SECONDS", "3"))
 BITRATE_KBPS = int(os.getenv("BITRATE_KBPS", "128"))
 BACKOFF_MS = [int(x) for x in os.getenv("RECONNECT_BACKOFF_MS", "250,500,1000,2000,3000").split(",")]
@@ -66,6 +66,9 @@ def get_station_json(station_name):
     }
 
 def set_preset_on_speaker(station_name, slot):
+    if not SPEAKER_IP:
+        return "SPEAKER_IP is not configured. Run scripts/setup.py or set SPEAKER_IP in .env."
+
     base = BASE_URL.rstrip("/")
     station = config["stations"][station_name]
     preset_xml = f"""<?xml version="1.0" encoding="UTF-8"?>
@@ -345,7 +348,7 @@ class StreamHandler(BaseHTTPRequestHandler):
 def main():
     os.makedirs("/data", exist_ok=True)
     load_config()
-    port = int(os.getenv("LISTEN_PORT", "8788"))
+    port = int(os.getenv("LISTEN_PORT", "8092"))
     server = HTTPServer(("0.0.0.0", port), StreamHandler)
     print(f"Preset-Proxy läuft auf Port {port}")
     server.serve_forever()
