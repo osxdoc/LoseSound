@@ -5,7 +5,7 @@ import threading
 import time
 import collections
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
-from urllib.parse import urlparse
+from urllib.parse import urlparse, parse_qs, urlencode
 import urllib.request
 import urllib.error
 import xml.etree.ElementTree as ET
@@ -58,6 +58,7 @@ stream_stats = {}
 SPEAKER_IP = os.getenv("SPEAKER_IP", "")
 BASE_URL = os.getenv("BASE_URL", "http://127.0.0.1:8092")
 LOG_STREAM_CHUNKS = os.getenv("LOG_STREAM_CHUNKS", "0").lower() in ("1", "true", "yes", "on")
+RADIO_BROWSER_BASE_URL = os.getenv("RADIO_BROWSER_BASE_URL", "https://de1.api.radio-browser.info")
 
 def format_log_value(value):
     text = str(value).replace("\n", "\\n").replace("\r", "\\r")
@@ -313,6 +314,81 @@ def inspect_station_stream(station_name):
             "lastProxyStats": stats
         }
 
+def station_slug(name):
+    slug = []
+    for char in name.lower():
+        if char.isalnum():
+            slug.append(char)
+        elif slug and slug[-1] != "_":
+            slug.append("_")
+    value = "".join(slug).strip("_")
+    return value[:48] or "station"
+
+def unique_station_name(name):
+    base = station_slug(name)
+    candidate = base
+    counter = 2
+    with config_lock:
+        while candidate in config["stations"]:
+            candidate = f"{base}_{counter}"
+            counter += 1
+    return candidate
+
+def fetch_radio_browser_stations(params):
+    query = {
+        "hidebroken": "true",
+        "order": params.get("order", ["clickcount"])[0] or "clickcount",
+        "reverse": "true",
+        "limit": params.get("limit", ["30"])[0] or "30"
+    }
+
+    allowed = {
+        "name",
+        "countrycode",
+        "language",
+        "tag",
+        "codec",
+        "bitrateMin",
+        "bitrateMax"
+    }
+    for key in allowed:
+        value = params.get(key, [""])[0].strip()
+        if value:
+            query[key] = value
+
+    url = f"{RADIO_BROWSER_BASE_URL.rstrip('/')}/json/stations/search?{urlencode(query)}"
+    req = urllib.request.Request(url, headers={
+        "User-Agent": "LoseSound/1.0",
+        "Accept": "application/json"
+    })
+    with urllib.request.urlopen(req, timeout=12) as resp:
+        stations = json.loads(resp.read().decode("utf-8"))
+
+    out = []
+    for station in stations:
+        stream_url = station.get("url_resolved") or station.get("url")
+        if not stream_url:
+            continue
+        out.append({
+            "stationuuid": station.get("stationuuid", ""),
+            "name": station.get("name", ""),
+            "url": station.get("url", ""),
+            "urlResolved": stream_url,
+            "homepage": station.get("homepage", ""),
+            "favicon": station.get("favicon", ""),
+            "tags": station.get("tags", ""),
+            "country": station.get("country", ""),
+            "countrycode": station.get("countrycode", ""),
+            "language": station.get("language", ""),
+            "codec": station.get("codec", ""),
+            "bitrate": station.get("bitrate", 0),
+            "votes": station.get("votes", 0),
+            "clickcount": station.get("clickcount", 0),
+            "lastcheckok": station.get("lastcheckok", 0)
+        })
+    log("catalog.search.ok", count=len(out), query=url)
+    return out
+
 class StreamHandler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
@@ -477,6 +553,8 @@ class StreamHandler(BaseHTTPRequestHandler):
             self.serve_index()
         elif path == "/api/settings":
             self.handle_api_settings(path)
+        elif path == "/api/catalog/search":
+            self.handle_catalog_search(parsed.query)
         elif path.startswith("/api/stations/") and path.endswith("/diagnostics"):
             self.handle_station_diagnostics(path)
         elif path.startswith("/api/stations"):
@@ -502,6 +580,8 @@ class StreamHandler(BaseHTTPRequestHandler):
             self.handle_preset_api(path)
         elif path == "/api/stations" or path == "/api/stations/":
             self.handle_api_stations(path)
+        elif path == "/api/catalog/add":
+            self.handle_catalog_add()
         elif path == "/api/settings":
             self.handle_api_settings(path)
         else:
@@ -621,6 +701,56 @@ class StreamHandler(BaseHTTPRequestHandler):
             return
 
         self.send_json(inspect_station_stream(station_name))
+
+    def handle_catalog_search(self, query_string):
+        try:
+            stations = fetch_radio_browser_stations(parse_qs(query_string))
+            self.send_json({"status": "ok", "stations": stations})
+        except Exception as e:
+            log("catalog.search.error", message=str(e))
+            self.send_json({"status": "error", "message": str(e), "stations": []})
+
+    def handle_catalog_add(self):
+        length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(length)
+        try:
+            data = json.loads(body)
+        except json.JSONDecodeError:
+            self.send_error(400, "Invalid JSON")
+            return
+
+        display_name = data.get("displayName") or data.get("name") or "Station"
+        dispatcher_url = data.get("dispatcherUrl") or data.get("urlResolved") or data.get("url")
+        if not dispatcher_url:
+            self.send_error(400, "Missing dispatcher URL")
+            return
+
+        with config_lock:
+            name = unique_station_name(display_name)
+            config["stations"][name] = {
+                "name": display_name,
+                "dispatcherUrl": dispatcher_url,
+                "presets": []
+            }
+            save_config()
+        log("catalog.station.add", station=name, display_name=display_name)
+
+        slot = data.get("preset")
+        if isinstance(slot, int) and 1 <= slot <= 6:
+            result = set_preset_on_speaker(name, slot)
+            if result["ok"]:
+                with config_lock:
+                    for station in config["stations"].values():
+                        if slot in station["presets"]:
+                            station["presets"].remove(slot)
+                    config["stations"][name]["presets"].append(slot)
+                    save_config()
+                self.send_json({"status": "ok", "name": name, "preset": slot})
+            else:
+                self.send_json({"status": "error", "name": name, "message": result.get("message", "Unknown speaker error")})
+            return
+
+        self.send_json({"status": "ok", "name": name})
 
     def handle_preset_api(self, path):
         parts = path.replace("/api/stations/", "").split("/")

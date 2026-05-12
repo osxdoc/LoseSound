@@ -28,6 +28,7 @@ services:
       - BITRATE_KBPS=${BITRATE_KBPS:-128}
       - RECONNECT_BACKOFF_MS=${RECONNECT_BACKOFF_MS:-250,500,1000,2000,3000}
       - LOG_STREAM_CHUNKS=${LOG_STREAM_CHUNKS:-0}
+      - RADIO_BROWSER_BASE_URL=${RADIO_BROWSER_BASE_URL:-https://de1.api.radio-browser.info}
     volumes:
       - preset_proxy_data:/data
     restart: unless-stopped

@@ -107,6 +107,31 @@
             color: #aaa;
             margin-bottom: 16px;
         }
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        .tab-btn {
+            padding: 9px 14px;
+            border: 1px solid #2a2a3a;
+            border-radius: 6px;
+            background: #12121c;
+            color: #aaa;
+            cursor: pointer;
+            font-size: 13px;
+        }
+        .tab-btn.active {
+            border-color: #00a8e0;
+            color: #fff;
+            background: rgba(0, 168, 224, 0.18);
+        }
+        .view {
+            display: none;
+        }
+        .view.active {
+            display: block;
+        }
         table {
             width: 100%;
             border-collapse: collapse;
@@ -209,6 +234,21 @@
         .add-form input {
             flex: 1;
             min-width: 150px;
+        }
+        .catalog-form {
+            display: grid;
+            grid-template-columns: 1.4fr 120px 150px 120px auto;
+            gap: 8px;
+            align-items: center;
+        }
+        select {
+            width: 100%;
+            padding: 8px 12px;
+            background: #0a0a14;
+            border: 1px solid #2a2a3a;
+            border-radius: 6px;
+            color: #e0e0e0;
+            font-size: 13px;
         }
         .footer {
             text-align: center;
@@ -323,6 +363,9 @@
             .diagnostics-grid {
                 grid-template-columns: 1fr;
             }
+            .catalog-form {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -361,24 +404,72 @@
 
         <div id="message"></div>
 
-        <div class="section">
-            <div class="section-title">Station einem Preset zuweisen</div>
-            <div id="presetTable"></div>
+        <div class="tabs">
+            <button id="tabPresets" class="tab-btn active" onclick="showView('presets')">Presets</button>
+            <button id="tabCatalog" class="tab-btn" onclick="showView('catalog')">Sender suchen</button>
         </div>
 
-        <div class="section">
-            <div class="section-title">Neue Station hinzufügen</div>
-            <div class="add-form">
-                <input type="text" id="newStationName" placeholder="Name (z.B. hr3)">
-                <input type="text" id="newStationDisplay" placeholder="Anzeigename (z.B. HR3)">
-                <input type="text" id="newStationUrl" placeholder="Dispatcher URL">
-                <button class="btn btn-primary" onclick="addStation()">Hinzufügen</button>
+        <div id="presetsView" class="view active">
+            <div class="section">
+                <div class="section-title">Station einem Preset zuweisen</div>
+                <div id="presetTable"></div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Neue Station hinzufügen</div>
+                <div class="add-form">
+                    <input type="text" id="newStationName" placeholder="Name (z.B. hr3)">
+                    <input type="text" id="newStationDisplay" placeholder="Anzeigename (z.B. HR3)">
+                    <input type="text" id="newStationUrl" placeholder="Dispatcher URL">
+                    <button class="btn btn-primary" onclick="addStation()">Hinzufügen</button>
+                </div>
+            </div>
+
+            <div class="section">
+                <div class="section-title">Vorhandene Stationen</div>
+                <div id="stationList"></div>
             </div>
         </div>
 
-        <div class="section">
-            <div class="section-title">Vorhandene Stationen</div>
-            <div id="stationList"></div>
+        <div id="catalogView" class="view">
+            <div class="section">
+                <div class="section-title">Senderkatalog</div>
+                <div class="catalog-form">
+                    <input type="text" id="catalogQuery" placeholder="Name oder Suchbegriff">
+                    <select id="catalogCountry">
+                        <option value="">Alle Länder</option>
+                        <option value="DE">Deutschland</option>
+                        <option value="AT">Österreich</option>
+                        <option value="CH">Schweiz</option>
+                        <option value="GB">UK</option>
+                        <option value="US">USA</option>
+                        <option value="FR">Frankreich</option>
+                        <option value="IT">Italien</option>
+                        <option value="ES">Spanien</option>
+                        <option value="NL">Niederlande</option>
+                    </select>
+                    <select id="catalogTag">
+                        <option value="">Alle Kategorien</option>
+                        <option value="news">News</option>
+                        <option value="talk">Talk</option>
+                        <option value="pop">Pop</option>
+                        <option value="rock">Rock</option>
+                        <option value="jazz">Jazz</option>
+                        <option value="classical">Klassik</option>
+                        <option value="electronic">Electronic</option>
+                        <option value="80s">80s</option>
+                        <option value="90s">90s</option>
+                    </select>
+                    <select id="catalogOrder">
+                        <option value="clickcount">Beliebt</option>
+                        <option value="votes">Votes</option>
+                        <option value="bitrate">Bitrate</option>
+                        <option value="name">Name</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="searchCatalog()">Suchen</button>
+                </div>
+                <div id="catalogResults"></div>
+            </div>
         </div>
 
         <div class="footer">
@@ -391,6 +482,14 @@
         let currentPresetMap = {};
         let settings = {};
         let diagnostics = null;
+        let catalogResults = [];
+
+        function showView(name) {
+            document.getElementById('presetsView').classList.toggle('active', name === 'presets');
+            document.getElementById('catalogView').classList.toggle('active', name === 'catalog');
+            document.getElementById('tabPresets').classList.toggle('active', name === 'presets');
+            document.getElementById('tabCatalog').classList.toggle('active', name === 'catalog');
+        }
 
         async function loadStations() {
             try {
@@ -554,6 +653,132 @@
 
         function testStream(stationName) {
             window.open(`/${stationName}`, '_blank');
+        }
+
+        async function searchCatalog() {
+            const params = new URLSearchParams();
+            const query = document.getElementById('catalogQuery').value.trim();
+            const country = document.getElementById('catalogCountry').value;
+            const tag = document.getElementById('catalogTag').value;
+            const order = document.getElementById('catalogOrder').value;
+
+            if (query) params.set('name', query);
+            if (country) params.set('countrycode', country);
+            if (tag) params.set('tag', tag);
+            if (order) params.set('order', order);
+            params.set('limit', '40');
+
+            document.getElementById('catalogResults').innerHTML = '<div class="diagnostics">Suche Sender ...</div>';
+            try {
+                const resp = await fetch(`/api/catalog/search?${params.toString()}`);
+                const data = await resp.json();
+                if (data.status !== 'ok') {
+                    showMessage(`Katalogfehler: ${data.message || 'Unbekannt'}`, 'error');
+                    catalogResults = [];
+                } else {
+                    catalogResults = data.stations || [];
+                }
+                buildCatalogResults();
+            } catch (e) {
+                catalogResults = [];
+                document.getElementById('catalogResults').innerHTML = '<div class="diagnostics diagnostics-error">Katalog konnte nicht geladen werden.</div>';
+            }
+        }
+
+        function buildCatalogResults() {
+            if (catalogResults.length === 0) {
+                document.getElementById('catalogResults').innerHTML = '<div class="diagnostics">Keine Sender gefunden.</div>';
+                return;
+            }
+
+            let html = `
+                <table style="margin-top:16px;">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Land</th>
+                            <th>Tags</th>
+                            <th>Codec</th>
+                            <th>Bitrate</th>
+                            <th>Aktionen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            catalogResults.forEach((station, index) => {
+                html += `
+                    <tr>
+                        <td>${escapeHtml(station.name || '-')}</td>
+                        <td>${escapeHtml(station.countrycode || station.country || '-')}</td>
+                        <td style="font-size:11px;color:#666;max-width:260px;overflow:hidden;text-overflow:ellipsis;">${escapeHtml(station.tags || '-')}</td>
+                        <td>${escapeHtml(station.codec || '-')}</td>
+                        <td>${station.bitrate || '-'}</td>
+                        <td>
+                            <div class="actions">
+                                <button class="btn btn-secondary btn-small" onclick="previewCatalog(${index})">Test</button>
+                                <button class="btn btn-primary btn-small" onclick="addCatalogStation(${index})">Hinzufügen</button>
+                                <select id="catalog-preset-${index}" style="width:84px;font-size:11px;">
+                                    <option value="">Preset</option>
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4</option>
+                                    <option value="5">5</option>
+                                    <option value="6">6</option>
+                                </select>
+                                <button class="btn btn-secondary btn-small" onclick="sendCatalogPreset(${index})">Setzen</button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            html += '</tbody></table>';
+            document.getElementById('catalogResults').innerHTML = html;
+        }
+
+        function previewCatalog(index) {
+            const station = catalogResults[index];
+            if (station && station.urlResolved) {
+                window.open(station.urlResolved, '_blank');
+            }
+        }
+
+        async function addCatalogStation(index, preset = null) {
+            const station = catalogResults[index];
+            if (!station) return null;
+
+            const body = {
+                name: station.name,
+                displayName: station.name,
+                dispatcherUrl: station.urlResolved || station.url
+            };
+            if (preset) body.preset = preset;
+
+            const resp = await fetch('/api/catalog/add', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            const data = await resp.json();
+            if (data.status === 'ok') {
+                showMessage(preset ? `Sender wurde auf Preset ${preset} gesetzt` : 'Sender wurde hinzugefügt', 'success');
+                loadStations();
+            } else {
+                showMessage(`Fehler: ${data.message || 'Sender konnte nicht hinzugefügt werden'}`, 'error');
+            }
+            return data;
+        }
+
+        function sendCatalogPreset(index) {
+            const select = document.getElementById(`catalog-preset-${index}`);
+            const preset = parseInt(select.value, 10);
+            if (!Number.isFinite(preset)) {
+                showMessage('Bitte Preset auswählen', 'error');
+                return;
+            }
+            addCatalogStation(index, preset);
         }
 
         async function addStation() {
