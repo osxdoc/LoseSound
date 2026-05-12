@@ -27,6 +27,7 @@ services:
       - BUFFER_SECONDS=${BUFFER_SECONDS:-3}
       - BITRATE_KBPS=${BITRATE_KBPS:-128}
       - RECONNECT_BACKOFF_MS=${RECONNECT_BACKOFF_MS:-250,500,1000,2000,3000}
+      - LOG_STREAM_CHUNKS=${LOG_STREAM_CHUNKS:-0}
     volumes:
       - preset_proxy_data:/data
     restart: unless-stopped

@@ -152,6 +152,23 @@ Then verify the speaker API is reachable from the Docker host:
 curl http://<SPEAKER_IP>:8090/info
 ```
 
+### Analyze proxy streaming
+
+Follow the Preset-Proxy logs while pressing a preset on the SoundTouch:
+
+```bash
+docker compose logs -f preset-proxy
+```
+
+Useful events are `station.json`, `stream.start`, `dispatcher.resolve.ok`, `stream.upstream.open`, `stream.response.sent`, `stream.client.disconnect`, and `stream.end`.
+
+For verbose byte counters, set this in `.env` and recreate the proxy:
+
+```bash
+LOG_STREAM_CHUNKS=1
+docker compose up -d --build --force-recreate preset-proxy
+```
+
 ### AfterTouch Web UI not working
 
 ```bash

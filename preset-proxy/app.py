@@ -3,7 +3,7 @@ import json
 import threading
 import time
 import collections
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse
 import urllib.request
 import urllib.error
@@ -34,6 +34,19 @@ BASE_URL = os.getenv("BASE_URL", "http://127.0.0.1:8092")
 BUFFER_SECONDS = int(os.getenv("BUFFER_SECONDS", "3"))
 BITRATE_KBPS = int(os.getenv("BITRATE_KBPS", "128"))
 BACKOFF_MS = [int(x) for x in os.getenv("RECONNECT_BACKOFF_MS", "250,500,1000,2000,3000").split(",")]
+LOG_STREAM_CHUNKS = os.getenv("LOG_STREAM_CHUNKS", "0").lower() in ("1", "true", "yes", "on")
+
+def format_log_value(value):
+    text = str(value).replace("\n", "\\n").replace("\r", "\\r")
+    if not text or any(char.isspace() for char in text):
+        return json.dumps(text)
+    return text
+
+def log(event, **fields):
+    parts = [time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), event]
+    for key, value in fields.items():
+        parts.append(f"{key}={format_log_value(value)}")
+    print(" ".join(parts), flush=True)
 
 def load_config():
     global config
@@ -89,21 +102,26 @@ def set_preset_on_speaker(station_name, slot):
 </preset>"""
 
     url = f"http://{SPEAKER_IP}:8090/storePreset"
+    log("preset.store.start", station=station_name, slot=slot, speaker=SPEAKER_IP, location=location)
     try:
         req = urllib.request.Request(url, data=preset_xml.encode("utf-8"))
         req.add_header("Content-Type", "application/xml")
         req.add_header("Accept", "application/xml")
         with urllib.request.urlopen(req, timeout=5) as resp:
+            body = resp.read().decode("utf-8", errors="replace")
+            log("preset.store.ok", station=station_name, slot=slot, status=resp.status, bytes=len(body))
             return {
                 "ok": True,
                 "status": resp.status,
-                "body": resp.read().decode("utf-8", errors="replace")
+                "body": body
             }
     except urllib.error.HTTPError as e:
         body = e.read().decode("utf-8", errors="replace")
         message = body.strip() or f"HTTP {e.code} {e.reason}"
+        log("preset.store.http_error", station=station_name, slot=slot, status=e.code, message=message[:160])
         return {"ok": False, "status": e.code, "message": message}
     except Exception as e:
+        log("preset.store.error", station=station_name, slot=slot, message=str(e))
         return {"ok": False, "message": str(e)}
 
 def resolve_dispatcher(dispatcher_url):
@@ -114,15 +132,18 @@ def resolve_dispatcher(dispatcher_url):
     req = urllib.request.Request(dispatcher_url, headers=headers)
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
-            return resp.url, resp.headers.get("Content-Type", "audio/mpeg")
+            content_type = resp.headers.get("Content-Type", "audio/mpeg")
+            log("dispatcher.resolve.ok", dispatcher=dispatcher_url, resolved=resp.url, content_type=content_type)
+            return resp.url, content_type
     except Exception as e:
+        log("dispatcher.resolve.error", dispatcher=dispatcher_url, message=str(e))
         raise Exception(f"Dispatcher resolve failed: {e}")
 
 class StreamHandler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
     def log_message(self, format, *args):
-        pass
+        log("http.request", client=self.client_address[0], message=format % args)
 
     def send_audio_stream(self, station_name):
         station = config["stations"].get(station_name)
@@ -130,13 +151,27 @@ class StreamHandler(BaseHTTPRequestHandler):
             self.send_error(404, "Station not found")
             return
 
-        buffer_size = (BUFFER_SECONDS * BITRATE_KBPS * 1000) // 8
-        ring_buffer = collections.deque(maxlen=buffer_size)
+        stream_id = f"{station_name}-{int(time.time() * 1000)}-{threading.get_ident()}"
+        buffer_bytes_target = (BUFFER_SECONDS * BITRATE_KBPS * 1000) // 8
+        max_chunks = max(8, buffer_bytes_target // 4096)
+        ring_buffer = collections.deque(maxlen=max_chunks)
         buffer_lock = threading.Lock()
         producer_done = threading.Event()
-        consumer_waiting = threading.Event()
+        producer_ready = threading.Event()
+        bytes_in = 0
+        bytes_out = 0
+
+        log(
+            "stream.start",
+            stream_id=stream_id,
+            station=station_name,
+            client=self.client_address[0],
+            buffer_target_bytes=buffer_bytes_target,
+            max_chunks=max_chunks
+        )
 
         def producer():
+            nonlocal bytes_in
             backoff_idx = 0
             while not producer_done.is_set():
                 try:
@@ -147,23 +182,39 @@ class StreamHandler(BaseHTTPRequestHandler):
                     })
                     with urllib.request.urlopen(req, timeout=30) as resp:
                         backoff_idx = 0
+                        log(
+                            "stream.upstream.open",
+                            stream_id=stream_id,
+                            station=station_name,
+                            status=resp.status,
+                            content_type=resp.headers.get("Content-Type", content_type),
+                            resolved=resolved_url
+                        )
                         while not producer_done.is_set():
                             try:
                                 chunk = resp.read(4096)
                                 if not chunk:
+                                    log("stream.upstream.eof", stream_id=stream_id, station=station_name)
                                     break
                                 with buffer_lock:
                                     ring_buffer.append(chunk)
+                                    bytes_in += len(chunk)
+                                    buffered = len(ring_buffer)
+                                producer_ready.set()
+                                if LOG_STREAM_CHUNKS and bytes_in % (256 * 1024) < len(chunk):
+                                    log("stream.producer.bytes", stream_id=stream_id, bytes_in=bytes_in, buffered_chunks=buffered)
                             except (urllib.error.HTTPError, urllib.error.URLError, OSError) as e:
+                                log("stream.upstream.read_error", stream_id=stream_id, station=station_name, message=str(e))
                                 break
-                except Exception:
-                    pass
+                except Exception as e:
+                    log("stream.upstream.error", stream_id=stream_id, station=station_name, message=str(e))
 
                 if producer_done.is_set():
                     break
 
                 backoff = BACKOFF_MS[min(backoff_idx, len(BACKOFF_MS) - 1)] / 1000.0
                 backoff_idx += 1
+                log("stream.upstream.retry", stream_id=stream_id, station=station_name, backoff_seconds=backoff)
 
                 start_time = time.time()
                 while time.time() - start_time < backoff:
@@ -176,12 +227,19 @@ class StreamHandler(BaseHTTPRequestHandler):
         producer_thread = threading.Thread(target=producer, daemon=True)
         producer_thread.start()
 
+        if not producer_ready.wait(timeout=10):
+            producer_done.set()
+            producer_thread.join(timeout=1)
+            log("stream.error", stream_id=stream_id, station=station_name, message="upstream did not produce data before timeout")
+            self.send_error(502, "Upstream stream did not produce data")
+            return
+
         self.send_response(200)
         self.send_header("Content-Type", "audio/mpeg")
         self.send_header("Cache-Control", "no-cache, no-store")
-        self.send_header("Connection", "keep-alive")
-        self.send_header("Transfer-Encoding", "chunked")
+        self.send_header("Connection", "close")
         self.end_headers()
+        log("stream.response.sent", stream_id=stream_id, station=station_name)
 
         try:
             while True:
@@ -192,19 +250,25 @@ class StreamHandler(BaseHTTPRequestHandler):
                         try:
                             self.wfile.write(chunk)
                             self.wfile.flush()
+                            bytes_out += len(chunk)
+                            if LOG_STREAM_CHUNKS and bytes_out % (256 * 1024) < len(chunk):
+                                log("stream.consumer.bytes", stream_id=stream_id, bytes_out=bytes_out, buffered_chunks=len(ring_buffer))
                         except (BrokenPipeError, ConnectionResetError):
+                            log("stream.client.disconnect", stream_id=stream_id, station=station_name, bytes_out=bytes_out)
                             break
                     elif producer_done.is_set():
                         break
         except (BrokenPipeError, ConnectionResetError):
-            pass
+            log("stream.client.disconnect", stream_id=stream_id, station=station_name, bytes_out=bytes_out)
         finally:
             producer_done.set()
             producer_thread.join(timeout=1)
+            log("stream.end", stream_id=stream_id, station=station_name, bytes_in=bytes_in, bytes_out=bytes_out)
 
     def do_GET(self):
         parsed = urlparse(self.path)
         path = parsed.path.rstrip("/")
+        log("request.get", path=path or "/", client=self.client_address[0], user_agent=self.headers.get("User-Agent", "-"))
 
         if path == "/" or path == "":
             self.serve_index()
@@ -225,6 +289,7 @@ class StreamHandler(BaseHTTPRequestHandler):
     def do_POST(self):
         parsed = urlparse(self.path)
         path = parsed.path.rstrip("/")
+        log("request.post", path=path or "/", client=self.client_address[0], user_agent=self.headers.get("User-Agent", "-"))
 
         if path.startswith("/api/stations/") and "/preset/" in path:
             self.handle_preset_api(path)
@@ -350,6 +415,7 @@ class StreamHandler(BaseHTTPRequestHandler):
                 self.send_error(404, "Station not found")
                 return
             station_json = get_station_json(station_name)
+        log("station.json", station=station_name, stream_url=station_json["streamUrl"], client=self.client_address[0])
         content = json.dumps(station_json).encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
@@ -369,8 +435,8 @@ def main():
     os.makedirs("/data", exist_ok=True)
     load_config()
     port = int(os.getenv("LISTEN_PORT", "8092"))
-    server = HTTPServer(("0.0.0.0", port), StreamHandler)
-    print(f"Preset-Proxy läuft auf Port {port}")
+    server = ThreadingHTTPServer(("0.0.0.0", port), StreamHandler)
+    log("proxy.start", port=port, base_url=BASE_URL, speaker_ip=SPEAKER_IP, buffer_seconds=BUFFER_SECONDS, bitrate_kbps=BITRATE_KBPS)
     server.serve_forever()
 
 if __name__ == "__main__":
