@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 import urllib.request
 import urllib.error
 import xml.etree.ElementTree as ET
+from xml.sax.saxutils import escape, quoteattr
 
 CONFIG_PATH = "/data/config.json"
 DEFAULT_CONFIG = {
@@ -55,43 +56,55 @@ def save_config():
 
 def get_station_json(station_name):
     base = BASE_URL.rstrip("/")
+    stream_url = f"{base}/{station_name}"
     return {
         "audio": {
             "hasPlaylist": False,
             "isRealtime": True,
-            "streamUrl": f"{base}/{station_name}"
+            "streamUrl": stream_url
         },
+        "imageUrl": "",
+        "isRealtime": True,
         "name": config["stations"][station_name]["name"],
+        "streamUrl": stream_url,
         "streamType": "liveRadio"
     }
 
 def set_preset_on_speaker(station_name, slot):
     if not SPEAKER_IP:
-        return "SPEAKER_IP is not configured. Run scripts/setup.py or set SPEAKER_IP in .env."
+        return {
+            "ok": False,
+            "message": "SPEAKER_IP is not configured. Run scripts/setup.py or set SPEAKER_IP in .env."
+        }
 
     base = BASE_URL.rstrip("/")
     station = config["stations"][station_name]
+    location = f"{base}/{station_name}.json"
+    now = int(time.time())
     preset_xml = f"""<?xml version="1.0" encoding="UTF-8"?>
-<preset>
-  <ContentItem type="LOCAL_INTERNET_RADIO">
-    <itemName>{station['name']}</itemName>
-    <sourceAccount></sourceAccount>
-    <source>INTERNET_RADIO</source>
-    <location>{base}/{station_name}.json</location>
-    <playSpec>
-      <ondemand>0</ondemand>
-    </playSpec>
+<preset id="{slot}" createdOn="{now}" updatedOn="{now}">
+  <ContentItem source="LOCAL_INTERNET_RADIO" type="stationurl" location={quoteattr(location)} sourceAccount="" isPresetable="true">
+    <itemName>{escape(station['name'])}</itemName>
   </ContentItem>
 </preset>"""
 
-    url = f"http://{SPEAKER_IP}:8090/storePreset?preset={slot}"
+    url = f"http://{SPEAKER_IP}:8090/storePreset"
     try:
         req = urllib.request.Request(url, data=preset_xml.encode("utf-8"))
         req.add_header("Content-Type", "application/xml")
+        req.add_header("Accept", "application/xml")
         with urllib.request.urlopen(req, timeout=5) as resp:
-            return resp.read().decode("utf-8", errors="replace")
+            return {
+                "ok": True,
+                "status": resp.status,
+                "body": resp.read().decode("utf-8", errors="replace")
+            }
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8", errors="replace")
+        message = body.strip() or f"HTTP {e.code} {e.reason}"
+        return {"ok": False, "status": e.code, "message": message}
     except Exception as e:
-        return str(e)
+        return {"ok": False, "message": str(e)}
 
 def resolve_dispatcher(dispatcher_url):
     headers = {
@@ -299,17 +312,24 @@ class StreamHandler(BaseHTTPRequestHandler):
                 return
 
             if self.command == "POST":
-                with config_lock:
-                    station = config["stations"][station_name]
-                    if slot not in station["presets"]:
-                        station["presets"].append(slot)
-                    save_config()
-
                 result = set_preset_on_speaker(station_name, slot)
-                if "error" in result.lower() or "Exception" in result:
-                    self.send_json({"status": "error", "message": result})
+                if result["ok"]:
+                    with config_lock:
+                        for station in config["stations"].values():
+                            if slot in station["presets"]:
+                                station["presets"].remove(slot)
+                        station = config["stations"][station_name]
+                        station["presets"].append(slot)
+                        save_config()
+
+                    self.send_json({
+                        "status": "ok",
+                        "preset": slot,
+                        "station": station_name,
+                        "speaker_response": result.get("body", "")[:200] or "ok"
+                    })
                 else:
-                    self.send_json({"status": "ok", "preset": slot, "station": station_name, "speaker_response": result[:200] if result else "ok"})
+                    self.send_json({"status": "error", "message": result.get("message", "Unknown speaker error")})
             else:
                 self.send_error(405, "Method not allowed")
         else:

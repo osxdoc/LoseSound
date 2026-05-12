@@ -138,6 +138,20 @@ Increase `BUFFER_SECONDS` in `.env` or check your network connection.
 - Verify Preset-Proxy is reachable: `http://<SERVICE_HOST>:8092`
 - Check speaker logs on the SoundTouch device
 
+### Preset save returns HTTP 400
+
+Rebuild the Preset-Proxy so the current `storePreset` XML format is used:
+
+```bash
+docker compose up -d --build --force-recreate preset-proxy
+```
+
+Then verify the speaker API is reachable from the Docker host:
+
+```bash
+curl http://<SPEAKER_IP>:8090/info
+```
+
 ### AfterTouch Web UI not working
 
 ```bash
