@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SoundTouch Preset-Proxy</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a14;
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #2a2a3a;
+        }
+        h1 {
+            font-size: 24px;
+            font-weight: 500;
+            color: #00a8e0;
+        }
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: #888;
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4caf50;
+        }
+        .section {
+            background: #12121c;
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+        .section-title {
+            font-size: 16px;
+            font-weight: 500;
+            color: #aaa;
+            margin-bottom: 16px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th {
+            text-align: left;
+            padding: 10px 8px;
+            font-size: 12px;
+            font-weight: 500;
+            color: #666;
+            text-transform: uppercase;
+            border-bottom: 1px solid #2a2a3a;
+        }
+        td {
+            padding: 12px 8px;
+            border-bottom: 1px solid #1a1a2a;
+            vertical-align: middle;
+        }
+        tr:last-child td {
+            border-bottom: none;
+        }
+        .preset-num {
+            width: 60px;
+            font-weight: 600;
+            color: #00a8e0;
+        }
+        .preset-status {
+            width: 100px;
+        }
+        .preset-status .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        .badge-active {
+            background: rgba(0, 168, 224, 0.2);
+            color: #00a8e0;
+        }
+        .badge-inactive {
+            background: rgba(255, 255, 255, 0.1);
+            color: #666;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 8px 12px;
+            background: #0a0a14;
+            border: 1px solid #2a2a3a;
+            border-radius: 6px;
+            color: #e0e0e0;
+            font-size: 13px;
+        }
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #00a8e0;
+        }
+        input[type="text"].url-input {
+            font-size: 12px;
+            color: #888;
+        }
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-primary {
+            background: #00a8e0;
+            color: #fff;
+        }
+        .btn-primary:hover {
+            background: #0090c0;
+        }
+        .btn-secondary {
+            background: #2a2a3a;
+            color: #aaa;
+        }
+        .btn-secondary:hover {
+            background: #3a3a4a;
+        }
+        .btn-small {
+            padding: 6px 10px;
+            font-size: 11px;
+        }
+        .actions {
+            display: flex;
+            gap: 6px;
+            white-space: nowrap;
+        }
+        .add-form {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .add-form input {
+            flex: 1;
+            min-width: 150px;
+        }
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #555;
+            font-size: 12px;
+        }
+        .footer a {
+            color: #00a8e0;
+            text-decoration: none;
+        }
+        .message {
+            padding: 10px 16px;
+            border-radius: 6px;
+            margin-bottom: 16px;
+            font-size: 13px;
+        }
+        .message-success {
+            background: rgba(76, 175, 80, 0.2);
+            border: 1px solid rgba(76, 175, 80, 0.3);
+            color: #4caf50;
+        }
+        .message-error {
+            background: rgba(244, 67, 54, 0.2);
+            border: 1px solid rgba(244, 67, 54, 0.3);
+            color: #f44336;
+        }
+        .spacer {
+            height: 1px;
+            background: #2a2a3a;
+            margin: 20px 0;
+        }
+        .inline-form {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .inline-form .input-group {
+            flex: 1;
+            min-width: 200px;
+        }
+        .current-station {
+            font-size: 11px;
+            color: #555;
+            margin-top: 4px;
+        }
+        @media (max-width: 768px) {
+            .actions {
+                flex-direction: column;
+            }
+            td, th {
+                padding: 8px 4px;
+            }
+            .url-input {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>SoundTouch Preset-Proxy</h1>
+            <div class="status">
+                <div class="status-dot"></div>
+                <span>Läuft</span>
+            </div>
+        </header>
+
+        <div id="message"></div>
+
+        <div class="section">
+            <div class="section-title">Station einem Preset zuweisen</div>
+            <div id="presetTable"></div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Neue Station hinzufügen</div>
+            <div class="add-form">
+                <input type="text" id="newStationName" placeholder="Name (z.B. hr3)">
+                <input type="text" id="newStationDisplay" placeholder="Anzeigename (z.B. HR3)">
+                <input type="text" id="newStationUrl" placeholder="Dispatcher URL">
+                <button class="btn btn-primary" onclick="addStation()">Hinzufügen</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Vorhandene Stationen</div>
+            <div id="stationList"></div>
+        </div>
+
+        <div class="footer">
+            SoundTouch Preset-Proxy | <a href="/" onclick="location.reload(); return false;">Neu laden</a>
+        </div>
+    </div>
+
+    <script>
+        let stations = [];
+        let currentPresetMap = {};
+
+        async function loadStations() {
+            try {
+                const resp = await fetch('/api/stations');
+                stations = await resp.json();
+                buildPresetTable();
+                buildStationList();
+            } catch (e) {
+                showMessage('Fehler beim Laden der Stationen', 'error');
+            }
+        }
+
+        function buildPresetTable() {
+            const slots = [1, 2, 3, 4, 5, 6];
+            let html = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Preset</th>
+                            <th>Station</th>
+                            <th>Dispatcher URL</th>
+                            <th>Status</th>
+                            <th>Aktionen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            slots.forEach(slot => {
+                const assignedStation = stations.find(s => s.presets && s.presets.includes(slot));
+                const stationName = assignedStation ? assignedStation.name : '';
+                const displayName = assignedStation ? assignedStation.displayName : '';
+                const dispatcherUrl = assignedStation ? assignedStation.dispatcherUrl : '';
+
+                html += `
+                    <tr>
+                        <td class="preset-num">${slot}</td>
+                        <td>
+                            <select id="station-select-${slot}" onchange="updatePresetSlot(${slot}, this.value)" style="width:100%;padding:8px;background:#0a0a14;border:1px solid #2a2a3a;border-radius:6px;color:#e0e0e0;font-size:13px;">
+                                <option value="">-- bitte wählen --</option>
+                                ${stations.map(s => `<option value="${s.name}" ${s.name === stationName ? 'selected' : ''}>${s.displayName || s.name}</option>`).join('')}
+                            </select>
+                        </td>
+                        <td>
+                            <input type="text" id="url-${slot}" class="url-input" value="${dispatcherUrl}" placeholder="Dispatcher URL" style="font-size:11px;color:#666;">
+                        </td>
+                        <td class="preset-status">
+                            <span class="badge ${assignedStation ? 'badge-active' : 'badge-inactive'}">
+                                ${assignedStation ? displayName || stationName : 'Nicht belegt'}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="actions">
+                                <button class="btn btn-primary btn-small" onclick="savePreset(${slot})">Speichern</button>
+                                ${stationName ? `<button class="btn btn-secondary btn-small" onclick="testStream('${stationName}')">Test</button>` : ''}
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            html += '</tbody></table>';
+            document.getElementById('presetTable').innerHTML = html;
+        }
+
+        function updatePresetSlot(slot, stationName) {
+            if (stationName) {
+                const station = stations.find(s => s.name === stationName);
+                if (station) {
+                    document.getElementById(`url-${slot}`).value = station.dispatcherUrl || '';
+                }
+            }
+        }
+
+        async function savePreset(slot) {
+            const select = document.getElementById(`station-select-${slot}`);
+            const stationName = select.value;
+            if (!stationName) {
+                showMessage('Bitte erst eine Station auswählen', 'error');
+                return;
+            }
+
+            try {
+                const resp = await fetch(`/api/stations/${stationName}/preset/${slot}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await resp.json();
+                if (data.status === 'ok') {
+                    showMessage(`Preset ${slot} wurde auf ${data.station} gesetzt`, 'success');
+                    loadStations();
+                } else {
+                    showMessage(`Fehler: ${data.message || 'Unbekannt'}`, 'error');
+                }
+            } catch (e) {
+                showMessage('Fehler beim Speichern des Presets', 'error');
+            }
+        }
+
+        function testStream(stationName) {
+            window.open(`/${stationName}`, '_blank');
+        }
+
+        async function addStation() {
+            const name = document.getElementById('newStationName').value.trim();
+            const displayName = document.getElementById('newStationDisplay').value.trim();
+            const url = document.getElementById('newStationUrl').value.trim();
+
+            if (!name || !url) {
+                showMessage('Name und Dispatcher URL sind erforderlich', 'error');
+                return;
+            }
+
+            try {
+                const resp = await fetch('/api/stations', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: name,
+                        displayName: displayName || name,
+                        dispatcherUrl: url,
+                        presets: []
+                    })
+                });
+                const data = await resp.json();
+                if (data.status === 'ok') {
+                    showMessage(`Station "${name}" wurde hinzugefügt`, 'success');
+                    document.getElementById('newStationName').value = '';
+                    document.getElementById('newStationDisplay').value = '';
+                    document.getElementById('newStationUrl').value = '';
+                    loadStations();
+                } else {
+                    showMessage('Fehler beim Hinzufügen der Station', 'error');
+                }
+            } catch (e) {
+                showMessage('Fehler beim Hinzufügen der Station', 'error');
+            }
+        }
+
+        function buildStationList() {
+            if (stations.length === 0) {
+                document.getElementById('stationList').innerHTML = '<p style="color:#666;font-size:13px;">Noch keine Stationen vorhanden.</p>';
+                return;
+            }
+
+            let html = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Anzeigename</th>
+                            <th>Dispatcher URL</th>
+                            <th>Presets</th>
+                            <th>Aktionen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            stations.forEach(s => {
+                html += `
+                    <tr>
+                        <td>${s.name}</td>
+                        <td>${s.displayName || '-'}</td>
+                        <td style="font-size:11px;color:#666;max-width:300px;overflow:hidden;text-overflow:ellipsis;">${s.dispatcherUrl}</td>
+                        <td>${s.presets && s.presets.length > 0 ? s.presets.join(', ') : '-'}</td>
+                        <td>
+                            <div class="actions">
+                                <button class="btn btn-secondary btn-small" onclick="testStream('${s.name}')">Test</button>
+                                <button class="btn btn-secondary btn-small" onclick="deleteStation('${s.name}')">Löschen</button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            html += '</tbody></table>';
+            document.getElementById('stationList').innerHTML = html;
+        }
+
+        async function deleteStation(name) {
+            if (!confirm(`Station "${name}" wirklich löschen?`)) return;
+            try {
+                const resp = await fetch(`/api/stations/${name}`, { method: 'DELETE' });
+                const data = await resp.json();
+                if (data.status === 'ok') {
+                    showMessage(`Station "${name}" wurde gelöscht`, 'success');
+                    loadStations();
+                } else {
+                    showMessage('Fehler beim Löschen', 'error');
+                }
+            } catch (e) {
+                showMessage('Fehler beim Löschen', 'error');
+            }
+        }
+
+        function showMessage(text, type) {
+            const msg = document.getElementById('message');
+            msg.innerHTML = `<div class="message message-${type}">${text}</div>`;
+            setTimeout(() => { msg.innerHTML = ''; }, 4000);
+        }
+
+        loadStations();
+    </script>
+</body>
+</html>

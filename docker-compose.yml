@@ -1,0 +1,38 @@
+services:
+  aftertouch:
+    image: ghcr.io/gesellix/bose-soundtouch:latest
+    container_name: aftertouch
+    ports:
+      - "${AFTERTOUCH_HTTP_PORT:-8000}:8000"
+      - "${AFTERTOUCH_HTTPS_PORT:-8443}:8443"
+    environment:
+      - PORT=8000
+      - HTTPS_PORT=8443
+      - SERVER_URL=http://${SERVICE_HOST}:${AFTERTOUCH_HTTP_PORT:-8000}
+      - HTTPS_SERVER_URL=https://${SERVICE_HOST}:${AFTERTOUCH_HTTPS_PORT:-8443}
+      - DATA_DIR=/app/data
+    volumes:
+      - aftertouch_data:/app/data
+    restart: unless-stopped
+
+  preset-proxy:
+    build:
+      context: ./preset-proxy
+    container_name: preset-proxy
+    ports:
+      - "${PROXY_PORT:-8788}:8788"
+    environment:
+      - LISTEN_ADDR=0.0.0.0
+      - LISTEN_PORT=8788
+      - BASE_URL=http://${SERVICE_HOST}:${PROXY_PORT:-8788}
+      - SPEAKER_IP=${SPEAKER_IP}
+      - BUFFER_SECONDS=${BUFFER_SECONDS:-3}
+      - BITRATE_KBPS=${BITRATE_KBPS:-128}
+      - RECONNECT_BACKOFF_MS=${RECONNECT_BACKOFF_MS:-250,500,1000,2000,3000}
+    volumes:
+      - preset_proxy_data:/data
+    restart: unless-stopped
+
+volumes:
+  aftertouch_data:
+  preset_proxy_data:
