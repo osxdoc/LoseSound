@@ -52,6 +52,8 @@ DEFAULT_CONFIG = {
 
 config_lock = threading.RLock()
 config = None
+stream_stats_lock = threading.Lock()
+stream_stats = {}
 
 SPEAKER_IP = os.getenv("SPEAKER_IP", "")
 BASE_URL = os.getenv("BASE_URL", "http://127.0.0.1:8092")
@@ -68,6 +70,16 @@ def log(event, **fields):
     for key, value in fields.items():
         parts.append(f"{key}={format_log_value(value)}")
     print(" ".join(parts), flush=True)
+
+def update_stream_stats(station_name, **updates):
+    with stream_stats_lock:
+        stats = stream_stats.setdefault(station_name, {})
+        stats.update(updates)
+        stats["updatedAt"] = int(time.time())
+
+def get_stream_stats(station_name):
+    with stream_stats_lock:
+        return copy.deepcopy(stream_stats.get(station_name, {}))
 
 def default_config():
     return copy.deepcopy(DEFAULT_CONFIG)
@@ -212,6 +224,95 @@ def resolve_dispatcher(dispatcher_url):
         log("dispatcher.resolve.error", dispatcher=dispatcher_url, message=str(e))
         raise Exception(f"Dispatcher resolve failed: {e}")
 
+def bitrate_from_headers(headers):
+    for key in ("icy-br", "icy-bitrate", "x-audiocast-bitrate"):
+        value = headers.get(key)
+        if not value:
+            continue
+        try:
+            return int(str(value).strip().split()[0])
+        except ValueError:
+            continue
+    return None
+
+def inspect_station_stream(station_name):
+    with config_lock:
+        station = copy.deepcopy(config["stations"].get(station_name))
+    if not station:
+        return {"ok": False, "message": "Station not found"}
+
+    started = time.time()
+    headers = {
+        "User-Agent": "Mozilla/5.0 (compatible; SoundTouch/1.0)",
+        "Accept": "*/*"
+    }
+    req = urllib.request.Request(station["dispatcherUrl"], headers=headers)
+    try:
+        with urllib.request.urlopen(req, timeout=12) as resp:
+            response_headers = {key.lower(): value for key, value in resp.headers.items()}
+            detected_kbps = bitrate_from_headers(response_headers)
+            sample_bytes = 0
+            sample_duration = 0
+
+            if detected_kbps is None:
+                sample_started = time.time()
+                deadline = sample_started + 2
+                while time.time() < deadline and sample_bytes < 128 * 1024:
+                    chunk = resp.read(4096)
+                    if not chunk:
+                        break
+                    sample_bytes += len(chunk)
+                sample_duration = max(0.001, time.time() - sample_started)
+                if sample_bytes:
+                    detected_kbps = round((sample_bytes * 8) / sample_duration / 1000)
+
+            interesting_headers = {}
+            for key in (
+                "content-type",
+                "icy-br",
+                "icy-name",
+                "icy-description",
+                "icy-genre",
+                "icy-url",
+                "icy-metaint",
+                "server",
+                "cache-control"
+            ):
+                if key in response_headers:
+                    interesting_headers[key] = response_headers[key]
+
+            stats = get_stream_stats(station_name)
+            result = {
+                "ok": True,
+                "station": station_name,
+                "displayName": station.get("name", station_name),
+                "dispatcherUrl": station["dispatcherUrl"],
+                "resolvedUrl": resp.url,
+                "status": resp.status,
+                "contentType": resp.headers.get("Content-Type", ""),
+                "detectedBitrateKbps": detected_kbps,
+                "bitrateSource": "headers" if bitrate_from_headers(response_headers) is not None else ("sample" if sample_bytes else "unknown"),
+                "sampleBytes": sample_bytes,
+                "sampleDurationSeconds": round(sample_duration, 2) if sample_duration else 0,
+                "elapsedMs": round((time.time() - started) * 1000),
+                "headers": interesting_headers,
+                "lastProxyStats": stats
+            }
+            log("station.diagnostics.ok", station=station_name, status=resp.status, bitrate_kbps=detected_kbps, resolved=resp.url)
+            return result
+    except Exception as e:
+        stats = get_stream_stats(station_name)
+        message = str(e)
+        log("station.diagnostics.error", station=station_name, message=message)
+        return {
+            "ok": False,
+            "station": station_name,
+            "displayName": station.get("name", station_name),
+            "dispatcherUrl": station["dispatcherUrl"],
+            "message": message,
+            "lastProxyStats": stats
+        }
+
 class StreamHandler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
@@ -245,6 +346,14 @@ class StreamHandler(BaseHTTPRequestHandler):
             bitrate_kbps=bitrate_kbps,
             max_chunks=max_chunks
         )
+        update_stream_stats(
+            station_name,
+            state="starting",
+            client=self.client_address[0],
+            bytesIn=0,
+            bytesOut=0,
+            lastError=""
+        )
 
         def producer():
             nonlocal bytes_in
@@ -266,6 +375,15 @@ class StreamHandler(BaseHTTPRequestHandler):
                             content_type=resp.headers.get("Content-Type", content_type),
                             resolved=resolved_url
                         )
+                        update_stream_stats(
+                            station_name,
+                            state="upstream-open",
+                            upstreamStatus=resp.status,
+                            contentType=resp.headers.get("Content-Type", content_type),
+                            resolvedUrl=resolved_url,
+                            detectedBitrateKbps=bitrate_from_headers({key.lower(): value for key, value in resp.headers.items()}),
+                            lastError=""
+                        )
                         while not producer_done.is_set():
                             try:
                                 chunk = resp.read(4096)
@@ -276,14 +394,17 @@ class StreamHandler(BaseHTTPRequestHandler):
                                     ring_buffer.append(chunk)
                                     bytes_in += len(chunk)
                                     buffered = len(ring_buffer)
+                                update_stream_stats(station_name, state="buffering", bytesIn=bytes_in, bufferedChunks=buffered)
                                 producer_ready.set()
                                 if LOG_STREAM_CHUNKS and bytes_in % (256 * 1024) < len(chunk):
                                     log("stream.producer.bytes", stream_id=stream_id, bytes_in=bytes_in, buffered_chunks=buffered)
                             except (urllib.error.HTTPError, urllib.error.URLError, OSError) as e:
                                 log("stream.upstream.read_error", stream_id=stream_id, station=station_name, message=str(e))
+                                update_stream_stats(station_name, state="upstream-read-error", lastError=str(e))
                                 break
                 except Exception as e:
                     log("stream.upstream.error", stream_id=stream_id, station=station_name, message=str(e))
+                    update_stream_stats(station_name, state="upstream-error", lastError=str(e))
 
                 if producer_done.is_set():
                     break
@@ -307,6 +428,7 @@ class StreamHandler(BaseHTTPRequestHandler):
             producer_done.set()
             producer_thread.join(timeout=1)
             log("stream.error", stream_id=stream_id, station=station_name, message="upstream did not produce data before timeout")
+            update_stream_stats(station_name, state="error", lastError="upstream did not produce data before timeout")
             self.send_error(502, "Upstream stream did not produce data")
             return
 
@@ -316,6 +438,7 @@ class StreamHandler(BaseHTTPRequestHandler):
         self.send_header("Connection", "close")
         self.end_headers()
         log("stream.response.sent", stream_id=stream_id, station=station_name)
+        update_stream_stats(station_name, state="streaming")
 
         try:
             while True:
@@ -327,19 +450,23 @@ class StreamHandler(BaseHTTPRequestHandler):
                             self.wfile.write(chunk)
                             self.wfile.flush()
                             bytes_out += len(chunk)
+                            update_stream_stats(station_name, state="streaming", bytesOut=bytes_out)
                             if LOG_STREAM_CHUNKS and bytes_out % (256 * 1024) < len(chunk):
                                 log("stream.consumer.bytes", stream_id=stream_id, bytes_out=bytes_out, buffered_chunks=len(ring_buffer))
                         except (BrokenPipeError, ConnectionResetError):
                             log("stream.client.disconnect", stream_id=stream_id, station=station_name, bytes_out=bytes_out)
+                            update_stream_stats(station_name, state="client-disconnect", bytesIn=bytes_in, bytesOut=bytes_out)
                             break
                     elif producer_done.is_set():
                         break
         except (BrokenPipeError, ConnectionResetError):
             log("stream.client.disconnect", stream_id=stream_id, station=station_name, bytes_out=bytes_out)
+            update_stream_stats(station_name, state="client-disconnect", bytesIn=bytes_in, bytesOut=bytes_out)
         finally:
             producer_done.set()
             producer_thread.join(timeout=1)
             log("stream.end", stream_id=stream_id, station=station_name, bytes_in=bytes_in, bytes_out=bytes_out)
+            update_stream_stats(station_name, state="ended", bytesIn=bytes_in, bytesOut=bytes_out)
 
     def do_GET(self):
         parsed = urlparse(self.path)
@@ -350,6 +477,8 @@ class StreamHandler(BaseHTTPRequestHandler):
             self.serve_index()
         elif path == "/api/settings":
             self.handle_api_settings(path)
+        elif path.startswith("/api/stations/") and path.endswith("/diagnostics"):
+            self.handle_station_diagnostics(path)
         elif path.startswith("/api/stations"):
             self.handle_api_stations(path)
         elif path.endswith(".json") and not path.startswith("/api/"):
@@ -476,6 +605,22 @@ class StreamHandler(BaseHTTPRequestHandler):
             reconnect_backoff_ms=",".join(str(value) for value in settings["reconnectBackoffMs"])
         )
         self.send_json({"status": "ok", "settings": settings})
+
+    def handle_station_diagnostics(self, path):
+        parts = path.replace("/api/stations/", "").split("/")
+        if len(parts) != 2 or parts[1] != "diagnostics":
+            self.send_error(404, "Not found")
+            return
+        if self.command != "GET":
+            self.send_error(405, "Method not allowed")
+            return
+
+        station_name = parts[0]
+        if station_name not in config["stations"]:
+            self.send_error(404, "Station not found")
+            return
+
+        self.send_json(inspect_station_stream(station_name))
 
     def handle_preset_api(self, path):
         parts = path.replace("/api/stations/", "").split("/")

@@ -103,6 +103,7 @@ In the Preset UI you can:
 - **Add new station**: Enter name, display name, and dispatcher URL
 - **Assign preset**: Select station and save preset number
 - **Test station**: Open stream directly in browser
+- **Inspect station**: Show resolved stream URL, HTTP/ICY metadata, bitrate, and latest proxy errors
 - **Delete station**: Remove from the list
 - **Tune streaming**: Adjust buffer seconds, expected bitrate, and reconnect backoff without editing `.env`
 
