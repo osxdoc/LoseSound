@@ -23,6 +23,7 @@ services:
       - LISTEN_ADDR=0.0.0.0
       - LISTEN_PORT=8092
       - BASE_URL=http://${SERVICE_HOST:?Run scripts/setup.py first}:${PROXY_PORT:-8092}
+      - AFTERTOUCH_URL=http://${SERVICE_HOST:?Run scripts/setup.py first}:${AFTERTOUCH_HTTP_PORT:-8091}
       - SPEAKER_IP=${SPEAKER_IP:?Run scripts/setup.py first}
       - BUFFER_SECONDS=${BUFFER_SECONDS:-3}
       - BITRATE_KBPS=${BITRATE_KBPS:-128}

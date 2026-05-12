@@ -58,6 +58,7 @@ active_streams = {}
 
 SPEAKER_IP = os.getenv("SPEAKER_IP", "")
 BASE_URL = os.getenv("BASE_URL", "http://127.0.0.1:8092")
+AFTERTOUCH_URL = os.getenv("AFTERTOUCH_URL", "http://127.0.0.1:8091")
 LOG_STREAM_CHUNKS = os.getenv("LOG_STREAM_CHUNKS", "0").lower() in ("1", "true", "yes", "on")
 RADIO_BROWSER_BASE_URL = os.getenv("RADIO_BROWSER_BASE_URL", "https://de1.api.radio-browser.info")
 
@@ -72,6 +73,11 @@ def log(event, **fields):
     for key, value in fields.items():
         parts.append(f"{key}={format_log_value(value)}")
     print(" ".join(parts), flush=True)
+
+def http_get(url, timeout=4):
+    req = urllib.request.Request(url, headers={"User-Agent": "LoseSound-proxy/1.0"})
+    with urllib.request.urlopen(req, timeout=timeout) as response:
+        return response.read()
 
 def update_stream_stats(station_name, **updates):
     with stream_stats_lock:
@@ -441,6 +447,70 @@ def fetch_radio_browser_stations(params):
     log("catalog.search.ok", count=len(out), query=url)
     return out
 
+def xml_text(root, name):
+    for node in root.iter():
+        tag = node.tag.split("}", 1)[-1]
+        if tag == name and node.text:
+            return node.text.strip()
+    return ""
+
+def speaker_setup_status():
+    aftertouch_url = AFTERTOUCH_URL.rstrip("/")
+    expected_marge_url = f"{aftertouch_url}/marge"
+    status = {
+        "status": "ok",
+        "speakerIp": SPEAKER_IP,
+        "speakerReachable": False,
+        "deviceId": "",
+        "name": "",
+        "type": "",
+        "currentMargeUrl": "",
+        "expectedMargeUrl": expected_marge_url,
+        "aftertouchUrl": aftertouch_url,
+        "proxyUrl": BASE_URL.rstrip("/"),
+        "migrationUrl": "",
+        "migrated": False,
+        "ready": False,
+        "message": ""
+    }
+
+    if not SPEAKER_IP:
+        status["message"] = "SPEAKER_IP is not configured."
+        return status
+
+    try:
+        body = http_get(f"http://{SPEAKER_IP}:8090/info", timeout=4)
+        root = ET.fromstring(body)
+    except Exception as e:
+        status["message"] = str(e)
+        return status
+
+    attrs = {key.lower(): value for key, value in root.attrib.items()}
+    device_id = attrs.get("deviceid") or attrs.get("device_id") or xml_text(root, "deviceID") or xml_text(root, "deviceId")
+    current_marge_url = xml_text(root, "margeURL")
+    status.update({
+        "speakerReachable": True,
+        "deviceId": device_id or "",
+        "name": xml_text(root, "name"),
+        "type": xml_text(root, "type"),
+        "currentMargeUrl": current_marge_url,
+    })
+
+    if device_id:
+        query = urlencode({"target_url": aftertouch_url})
+        status["migrationUrl"] = f"{aftertouch_url}/setup/migrate/{device_id}?{query}"
+
+    status["migrated"] = current_marge_url.rstrip("/") == expected_marge_url
+    status["ready"] = status["speakerReachable"] and status["migrated"]
+    if status["ready"]:
+        status["message"] = "SoundTouch speaker is migrated to AfterTouch."
+    elif current_marge_url:
+        status["message"] = "SoundTouch speaker points to a different Marge URL."
+    else:
+        status["message"] = "SoundTouch speaker is reachable but does not report an AfterTouch Marge URL."
+    log("setup.status", speaker=SPEAKER_IP, reachable=status["speakerReachable"], migrated=status["migrated"], current_marge=current_marge_url)
+    return status
+
 class StreamHandler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
@@ -634,6 +704,8 @@ class StreamHandler(BaseHTTPRequestHandler):
             self.handle_catalog_search(parsed.query)
         elif path == "/api/proxy/status":
             self.send_json(proxy_status())
+        elif path == "/api/setup/status":
+            self.send_json(speaker_setup_status())
         elif path.startswith("/api/stations/") and path.endswith("/diagnostics"):
             self.handle_station_diagnostics(path)
         elif path.startswith("/api/stations"):

@@ -318,7 +318,12 @@ def main():
     if args.migrate:
         migrate_speaker(service_host, speaker, env)
     else:
-        log("Migration übersprungen. Nutze dafür die AfterTouch Web UI oder starte erneut mit --migrate.")
+        log("Migration übersprungen. Ohne AfterTouch-Migration kann der SoundTouch die lokalen Presets nicht zuverlässig abrufen.")
+        log(f"AfterTouch UI: http://{service_host}:{port}")
+        if speaker.get("device_id"):
+            query = urllib.parse.urlencode({"target_url": f"http://{service_host}:{port}"})
+            log(f"Migration: http://{service_host}:{port}/setup/migrate/{speaker['device_id']}?{query}")
+        log("Falls AfterTouch SSH verlangt: FAT-USB-Stick mit leerer Datei 'remote_services' einstecken und den Lautsprecher neu starten.")
 
     proxy_port = env.get("PROXY_PORT", DEFAULTS["PROXY_PORT"])
     log(f"Preset UI: http://{service_host}:{proxy_port}")

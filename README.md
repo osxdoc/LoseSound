@@ -38,6 +38,7 @@ The setup script:
 - finds the SoundTouch speaker via SSDP or a local subnet scan
 - writes `.env` with only `SERVICE_HOST` and `SPEAKER_IP`
 - starts Docker Compose
+- prints the AfterTouch UI, Preset UI, and migration URL
 - leaves speaker discovery and migration in the AfterTouch Web UI by default
 
 If automatic speaker discovery fails, provide the speaker IP once:
@@ -83,6 +84,15 @@ To migrate manually, open:
 ```
 http://<SERVICE_HOST>:8091/setup/migrate/<DEVICE_ID>?target_url=http://<SERVICE_HOST>:8091
 ```
+
+The speaker must be migrated to AfterTouch before the local preset flow works reliably. The Preset-Proxy UI checks `http://<SPEAKER_IP>:8090/info` and warns if the speaker's `margeURL` does not point to `http://<SERVICE_HOST>:8091/marge`.
+
+If AfterTouch requires SSH access during migration, enable it once per speaker:
+
+1. Format a USB stick as FAT/FAT32.
+2. Create an empty file named `remote_services` in the root of the stick.
+3. Insert it into the SoundTouch speaker and power-cycle the speaker.
+4. Continue the migration in AfterTouch.
 
 ### 3. Set presets
 

@@ -276,6 +276,41 @@
             border: 1px solid rgba(244, 67, 54, 0.3);
             color: #f44336;
         }
+        .setup-status {
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #2a2a3a;
+            background: #12121c;
+            font-size: 13px;
+        }
+        .setup-status-ok {
+            border-color: rgba(76, 175, 80, 0.35);
+            background: rgba(76, 175, 80, 0.12);
+        }
+        .setup-status-warning {
+            border-color: rgba(244, 167, 54, 0.35);
+            background: rgba(244, 167, 54, 0.12);
+        }
+        .setup-title {
+            margin-bottom: 8px;
+            color: #e0e0e0;
+            font-weight: 600;
+        }
+        .setup-details {
+            color: #aaa;
+            line-height: 1.5;
+        }
+        .setup-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        .setup-actions a {
+            color: #fff;
+            text-decoration: none;
+        }
         .spacer {
             height: 1px;
             background: #2a2a3a;
@@ -429,6 +464,7 @@
         </header>
 
         <div id="message"></div>
+        <div id="setupStatus"></div>
 
         <div class="tabs">
             <button id="tabPresets" class="tab-btn active" onclick="showView('presets')">Presets</button>
@@ -518,6 +554,7 @@
         let diagnostics = null;
         let catalogResults = [];
         let proxyStatusTimer = null;
+        let setupStatusTimer = null;
 
         function showView(name) {
             document.getElementById('presetsView').classList.toggle('active', name === 'presets');
@@ -557,6 +594,59 @@
             } catch (e) {
                 showMessage('Fehler beim Laden der Einstellungen', 'error');
             }
+        }
+
+        async function loadSetupStatus() {
+            try {
+                const resp = await fetch('/api/setup/status');
+                const data = await resp.json();
+                renderSetupStatus(data);
+            } catch (e) {
+                document.getElementById('setupStatus').innerHTML = `
+                    <div class="setup-status setup-status-warning">
+                        <div class="setup-title">Setup-Status konnte nicht geprüft werden</div>
+                        <div class="setup-details">Der Proxy konnte den lokalen Setup-Status nicht laden.</div>
+                    </div>
+                `;
+            }
+        }
+
+        function renderSetupStatus(data) {
+            const el = document.getElementById('setupStatus');
+            if (data.ready) {
+                el.innerHTML = `
+                    <div class="setup-status setup-status-ok">
+                        <div class="setup-title">SoundTouch ist mit AfterTouch verbunden</div>
+                        <div class="setup-details">
+                            ${escapeHtml(data.name || 'SoundTouch')} (${escapeHtml(data.speakerIp || '-')}) nutzt ${escapeHtml(data.currentMargeUrl || data.expectedMargeUrl)}.
+                        </div>
+                    </div>
+                `;
+                return;
+            }
+
+            const speakerLine = data.speakerReachable
+                ? `${escapeHtml(data.name || 'SoundTouch')} (${escapeHtml(data.speakerIp || '-')}) meldet Marge: ${escapeHtml(data.currentMargeUrl || 'nicht gesetzt')}`
+                : `SoundTouch unter ${escapeHtml(data.speakerIp || 'unbekannt')} ist nicht erreichbar: ${escapeHtml(data.message || '-')}`;
+            const migrationLink = data.migrationUrl
+                ? `<a class="btn btn-primary btn-small" href="${escapeHtml(data.migrationUrl)}" target="_blank" rel="noreferrer">Migration öffnen</a>`
+                : '';
+
+            el.innerHTML = `
+                <div class="setup-status setup-status-warning">
+                    <div class="setup-title">AfterTouch-Migration erforderlich</div>
+                    <div class="setup-details">
+                        Ohne Migration fragt der SoundTouch nicht zuverlässig den lokalen AfterTouch/Proxy ab; Presets können dann auf dem Gerät hängen bleiben.
+                        <br>${speakerLine}
+                        <br>Erwartet: ${escapeHtml(data.expectedMargeUrl || '-')}
+                        <br>Wenn AfterTouch SSH verlangt: FAT-USB-Stick mit leerer Datei <code>remote_services</code> in den Speaker stecken und den Speaker neu starten.
+                    </div>
+                    <div class="setup-actions">
+                        <a class="btn btn-secondary btn-small" href="${escapeHtml(data.aftertouchUrl || '#')}" target="_blank" rel="noreferrer">AfterTouch öffnen</a>
+                        ${migrationLink}
+                    </div>
+                </div>
+            `;
         }
 
         async function saveSettings() {
@@ -1093,6 +1183,8 @@
         }
 
         loadSettings();
+        loadSetupStatus();
+        setupStatusTimer = setInterval(loadSetupStatus, 30000);
         loadStations();
     </script>
 </body>
