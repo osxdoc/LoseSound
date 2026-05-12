@@ -104,6 +104,9 @@ In the Preset UI you can:
 - **Assign preset**: Select station and save preset number
 - **Test station**: Open stream directly in browser
 - **Delete station**: Remove from the list
+- **Tune streaming**: Adjust buffer seconds, expected bitrate, and reconnect backoff without editing `.env`
+
+Stream settings are saved in the `preset_proxy_data` Docker volume. New stream connections use the updated values immediately.
 
 ### Pre-configured Stations
 

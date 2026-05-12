@@ -1,5 +1,6 @@
 import os
 import json
+import copy
 import threading
 import time
 import collections
@@ -11,7 +12,30 @@ import xml.etree.ElementTree as ET
 from xml.sax.saxutils import escape, quoteattr
 
 CONFIG_PATH = "/data/config.json"
+
+def parse_backoff_ms(value):
+    if isinstance(value, list):
+        items = value
+    else:
+        items = str(value).split(",")
+
+    backoff = []
+    for item in items:
+        try:
+            wait_ms = int(str(item).strip())
+        except ValueError:
+            continue
+        if 50 <= wait_ms <= 30000:
+            backoff.append(wait_ms)
+    return backoff or [250, 500, 1000, 2000, 3000]
+
+DEFAULT_SETTINGS = {
+    "bufferSeconds": int(os.getenv("BUFFER_SECONDS", "3")),
+    "bitrateKbps": int(os.getenv("BITRATE_KBPS", "128")),
+    "reconnectBackoffMs": parse_backoff_ms(os.getenv("RECONNECT_BACKOFF_MS", "250,500,1000,2000,3000"))
+}
 DEFAULT_CONFIG = {
+    "settings": DEFAULT_SETTINGS.copy(),
     "stations": {
         "hr3": {
             "name": "HR3",
@@ -31,9 +55,6 @@ config = None
 
 SPEAKER_IP = os.getenv("SPEAKER_IP", "")
 BASE_URL = os.getenv("BASE_URL", "http://127.0.0.1:8092")
-BUFFER_SECONDS = int(os.getenv("BUFFER_SECONDS", "3"))
-BITRATE_KBPS = int(os.getenv("BITRATE_KBPS", "128"))
-BACKOFF_MS = [int(x) for x in os.getenv("RECONNECT_BACKOFF_MS", "250,500,1000,2000,3000").split(",")]
 LOG_STREAM_CHUNKS = os.getenv("LOG_STREAM_CHUNKS", "0").lower() in ("1", "true", "yes", "on")
 
 def format_log_value(value):
@@ -48,18 +69,70 @@ def log(event, **fields):
         parts.append(f"{key}={format_log_value(value)}")
     print(" ".join(parts), flush=True)
 
+def default_config():
+    return copy.deepcopy(DEFAULT_CONFIG)
+
+def normalize_settings(data):
+    data = data if isinstance(data, dict) else {}
+
+    def bounded_int(name, default, minimum, maximum):
+        try:
+            value = int(data.get(name, default))
+        except (TypeError, ValueError):
+            value = default
+        return max(minimum, min(maximum, value))
+
+    return {
+        "bufferSeconds": bounded_int("bufferSeconds", DEFAULT_SETTINGS["bufferSeconds"], 1, 30),
+        "bitrateKbps": bounded_int("bitrateKbps", DEFAULT_SETTINGS["bitrateKbps"], 32, 320),
+        "reconnectBackoffMs": parse_backoff_ms(data.get("reconnectBackoffMs", DEFAULT_SETTINGS["reconnectBackoffMs"]))
+    }
+
+def normalize_config(data):
+    changed = False
+    if not isinstance(data, dict):
+        return default_config(), True
+
+    if not isinstance(data.get("stations"), dict):
+        data["stations"] = copy.deepcopy(DEFAULT_CONFIG["stations"])
+        changed = True
+
+    normalized_settings = normalize_settings(data.get("settings"))
+    if data.get("settings") != normalized_settings:
+        data["settings"] = normalized_settings
+        changed = True
+
+    for station in data["stations"].values():
+        if "presets" not in station or not isinstance(station["presets"], list):
+            station["presets"] = []
+            changed = True
+
+    return data, changed
+
+def stream_settings():
+    with config_lock:
+        settings = normalize_settings(config.get("settings", {}))
+    return (
+        settings["bufferSeconds"],
+        settings["bitrateKbps"],
+        settings["reconnectBackoffMs"]
+    )
+
 def load_config():
     global config
     with config_lock:
         if os.path.exists(CONFIG_PATH):
             try:
                 with open(CONFIG_PATH, "r") as f:
-                    config = json.load(f)
+                    loaded = json.load(f)
+                config, changed = normalize_config(loaded)
+                if changed:
+                    save_config()
             except (json.JSONDecodeError, IOError):
-                config = DEFAULT_CONFIG.copy()
+                config = default_config()
                 save_config()
         else:
-            config = DEFAULT_CONFIG.copy()
+            config = default_config()
             save_config()
 
 def save_config():
@@ -151,8 +224,9 @@ class StreamHandler(BaseHTTPRequestHandler):
             self.send_error(404, "Station not found")
             return
 
+        buffer_seconds, bitrate_kbps, backoff_ms = stream_settings()
         stream_id = f"{station_name}-{int(time.time() * 1000)}-{threading.get_ident()}"
-        buffer_bytes_target = (BUFFER_SECONDS * BITRATE_KBPS * 1000) // 8
+        buffer_bytes_target = (buffer_seconds * bitrate_kbps * 1000) // 8
         max_chunks = max(8, buffer_bytes_target // 4096)
         ring_buffer = collections.deque(maxlen=max_chunks)
         buffer_lock = threading.Lock()
@@ -167,6 +241,8 @@ class StreamHandler(BaseHTTPRequestHandler):
             station=station_name,
             client=self.client_address[0],
             buffer_target_bytes=buffer_bytes_target,
+            buffer_seconds=buffer_seconds,
+            bitrate_kbps=bitrate_kbps,
             max_chunks=max_chunks
         )
 
@@ -212,7 +288,7 @@ class StreamHandler(BaseHTTPRequestHandler):
                 if producer_done.is_set():
                     break
 
-                backoff = BACKOFF_MS[min(backoff_idx, len(BACKOFF_MS) - 1)] / 1000.0
+                backoff = backoff_ms[min(backoff_idx, len(backoff_ms) - 1)] / 1000.0
                 backoff_idx += 1
                 log("stream.upstream.retry", stream_id=stream_id, station=station_name, backoff_seconds=backoff)
 
@@ -272,6 +348,8 @@ class StreamHandler(BaseHTTPRequestHandler):
 
         if path == "/" or path == "":
             self.serve_index()
+        elif path == "/api/settings":
+            self.handle_api_settings(path)
         elif path.startswith("/api/stations"):
             self.handle_api_stations(path)
         elif path.endswith(".json") and not path.startswith("/api/"):
@@ -295,6 +373,8 @@ class StreamHandler(BaseHTTPRequestHandler):
             self.handle_preset_api(path)
         elif path == "/api/stations" or path == "/api/stations/":
             self.handle_api_stations(path)
+        elif path == "/api/settings":
+            self.handle_api_settings(path)
         else:
             self.send_error(404, "Not found")
 
@@ -361,6 +441,41 @@ class StreamHandler(BaseHTTPRequestHandler):
                 self.send_error(405, "Method not allowed")
         else:
             self.send_error(404, "Not found")
+
+    def handle_api_settings(self, path):
+        if path != "/api/settings":
+            self.send_error(404, "Not found")
+            return
+
+        if self.command == "GET":
+            with config_lock:
+                settings = normalize_settings(config.get("settings"))
+            self.send_json(settings)
+            return
+
+        if self.command != "POST":
+            self.send_error(405, "Method not allowed")
+            return
+
+        length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(length)
+        try:
+            data = json.loads(body)
+        except json.JSONDecodeError:
+            self.send_error(400, "Invalid JSON")
+            return
+
+        settings = normalize_settings(data)
+        with config_lock:
+            config["settings"] = settings
+            save_config()
+        log(
+            "settings.update",
+            buffer_seconds=settings["bufferSeconds"],
+            bitrate_kbps=settings["bitrateKbps"],
+            reconnect_backoff_ms=",".join(str(value) for value in settings["reconnectBackoffMs"])
+        )
+        self.send_json({"status": "ok", "settings": settings})
 
     def handle_preset_api(self, path):
         parts = path.replace("/api/stations/", "").split("/")
@@ -440,7 +555,16 @@ def main():
     load_config()
     port = int(os.getenv("LISTEN_PORT", "8092"))
     server = ThreadingHTTPServer(("0.0.0.0", port), StreamHandler)
-    log("proxy.start", port=port, base_url=BASE_URL, speaker_ip=SPEAKER_IP, buffer_seconds=BUFFER_SECONDS, bitrate_kbps=BITRATE_KBPS)
+    buffer_seconds, bitrate_kbps, backoff_ms = stream_settings()
+    log(
+        "proxy.start",
+        port=port,
+        base_url=BASE_URL,
+        speaker_ip=SPEAKER_IP,
+        buffer_seconds=buffer_seconds,
+        bitrate_kbps=bitrate_kbps,
+        reconnect_backoff_ms=",".join(str(value) for value in backoff_ms)
+    )
     server.serve_forever()
 
 if __name__ == "__main__":
