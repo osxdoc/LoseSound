@@ -283,9 +283,9 @@ class StreamHandler(BaseHTTPRequestHandler):
 
     def handle_preset_api(self, path):
         parts = path.replace("/api/stations/", "").split("/")
-        if len(parts) >= 3 and parts[2] == "preset":
+        if len(parts) == 3 and parts[1] == "preset":
             station_name = parts[0]
-            slot_str = parts[3] if len(parts) > 3 else None
+            slot_str = parts[2]
             if not slot_str or not slot_str.isdigit():
                 self.send_error(400, "Invalid preset slot")
                 return

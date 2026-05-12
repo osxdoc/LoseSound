@@ -2,12 +2,10 @@ services:
   aftertouch:
     image: ghcr.io/gesellix/bose-soundtouch:latest
     container_name: aftertouch
-    ports:
-      - "${AFTERTOUCH_HTTP_PORT:-8091}:8000"
-      - "${AFTERTOUCH_HTTPS_PORT:-8444}:8443"
+    network_mode: host
     environment:
-      - PORT=8000
-      - HTTPS_PORT=8443
+      - PORT=${AFTERTOUCH_HTTP_PORT:-8091}
+      - HTTPS_PORT=${AFTERTOUCH_HTTPS_PORT:-8444}
       - SERVER_URL=http://${SERVICE_HOST:?Run scripts/setup.py first}:${AFTERTOUCH_HTTP_PORT:-8091}
       - HTTPS_SERVER_URL=https://${SERVICE_HOST:?Run scripts/setup.py first}:${AFTERTOUCH_HTTPS_PORT:-8444}
       - DATA_DIR=/app/data

@@ -8,7 +8,7 @@ This setup replaces the manufacturer's cloud connection with a local AfterTouch 
 
 **Services:**
 
-- **AfterTouch** (Port 8091): Local Marge/BMX server replacing the speaker's cloud connection
+- **AfterTouch** (Port 8091): Local Marge/BMX server replacing the speaker's cloud connection, using host networking for UPnP/SSDP discovery
 - **Preset-Proxy** (Port 8092): Stream proxy with short buffer + reconnect + Web UI for preset management
 
 ## Requirements
@@ -76,7 +76,7 @@ SERVICE_HOST=10.10.10.85      # Docker host LAN IP
 SPEAKER_IP=10.10.10.26        # SoundTouch speaker IP
 ```
 
-Ports and stream tuning values are optional and have defaults in `docker-compose.yml`.
+Ports and stream tuning values are optional and have defaults in `docker-compose.yml`. AfterTouch uses Docker host networking so speaker discovery can receive UPnP/SSDP responses from the LAN.
 
 To migrate manually, open:
 
