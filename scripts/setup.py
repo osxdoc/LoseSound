@@ -51,6 +51,7 @@ def write_env(path, values):
     ]
 
     optional_keys = [
+        "SPEAKER_IPS",
         "AFTERTOUCH_HTTP_PORT",
         "AFTERTOUCH_HTTPS_PORT",
         "PROXY_PORT",
@@ -299,7 +300,16 @@ def main():
     speaker = choose_speaker(speakers)
     log(f"SoundTouch: {speaker['ip']} {speaker.get('name', '')}".strip())
 
+    speaker_ips = []
+    for found in speakers:
+        ip = found.get("ip")
+        if ip and ip not in speaker_ips:
+            speaker_ips.append(ip)
+
     env.update({"SERVICE_HOST": service_host, "SPEAKER_IP": speaker["ip"]})
+    if len(speaker_ips) > 1:
+        env["SPEAKER_IPS"] = ",".join(speaker_ips)
+        log(f"Mehrere Lautsprecher werden in der Weboberfläche geprüft: {env['SPEAKER_IPS']}")
     write_env(ENV_PATH, env)
     log(f".env aktualisiert: {ENV_PATH}")
 
@@ -320,9 +330,12 @@ def main():
     else:
         log("Migration übersprungen. Ohne AfterTouch-Migration kann der SoundTouch die lokalen Presets nicht zuverlässig abrufen.")
         log(f"AfterTouch UI: http://{service_host}:{port}")
-        if speaker.get("device_id"):
+        for found in speakers:
+            if not found.get("device_id"):
+                continue
             query = urllib.parse.urlencode({"target_url": f"http://{service_host}:{port}"})
-            log(f"Migration: http://{service_host}:{port}/setup/migrate/{speaker['device_id']}?{query}")
+            label = f"{found.get('name', 'SoundTouch')} {found.get('ip', '')}".strip()
+            log(f"Migration {label}: http://{service_host}:{port}/setup/migrate/{found['device_id']}?{query}")
         log("Falls AfterTouch SSH verlangt: FAT-USB-Stick mit leerer Datei 'remote_services' einstecken und den Lautsprecher neu starten.")
 
     proxy_port = env.get("PROXY_PORT", DEFAULTS["PROXY_PORT"])

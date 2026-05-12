@@ -311,6 +311,26 @@
             color: #fff;
             text-decoration: none;
         }
+        .setup-device-list {
+            margin-top: 10px;
+            display: grid;
+            gap: 8px;
+        }
+        .setup-device {
+            padding: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.16);
+        }
+        .setup-device-title {
+            color: #e0e0e0;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+        .setup-device-detail {
+            color: #aaa;
+            overflow-wrap: anywhere;
+        }
         .spacer {
             height: 1px;
             background: #2a2a3a;
@@ -437,15 +457,15 @@
             <div class="header-actions">
                 <div class="status">
                     <div class="status-dot"></div>
-                    <span>Läuft</span>
+                    <span>Läuft / Running</span>
                 </div>
                 <div class="settings-menu">
-                    <button class="icon-btn" onclick="toggleSettingsPanel()" aria-label="Einstellungen" title="Einstellungen">⚙</button>
+                    <button class="icon-btn" onclick="toggleSettingsPanel()" aria-label="Einstellungen / Settings" title="Einstellungen / Settings">⚙</button>
                     <div id="settingsPanel" class="settings-panel">
-                        <div class="settings-panel-title">Stream-Einstellungen</div>
+                        <div class="settings-panel-title">Stream-Einstellungen / Stream Settings</div>
                         <div class="settings-grid">
                             <div class="field">
-                                <label for="bufferSeconds">Puffer (s)</label>
+                                <label for="bufferSeconds">Puffer / Buffer (s)</label>
                                 <input type="number" id="bufferSeconds" min="1" max="30" step="1">
                             </div>
                             <div class="field">
@@ -457,7 +477,7 @@
                                 <input type="text" id="reconnectBackoffMs" placeholder="250,500,1000,2000,3000">
                             </div>
                         </div>
-                        <button class="btn btn-primary" onclick="saveSettings()">Speichern</button>
+                        <button class="btn btn-primary" onclick="saveSettings()">Speichern / Save</button>
                     </div>
                 </div>
             </div>
@@ -468,68 +488,68 @@
 
         <div class="tabs">
             <button id="tabPresets" class="tab-btn active" onclick="showView('presets')">Presets</button>
-            <button id="tabCatalog" class="tab-btn" onclick="showView('catalog')">Sender suchen</button>
-            <button id="tabStatus" class="tab-btn" onclick="showView('status')">Proxy Status</button>
+            <button id="tabCatalog" class="tab-btn" onclick="showView('catalog')">Sender suchen / Browse Stations</button>
+            <button id="tabStatus" class="tab-btn" onclick="showView('status')">Proxy-Status / Proxy Status</button>
         </div>
 
         <div id="presetsView" class="view active">
             <div class="section">
-                <div class="section-title">Station einem Preset zuweisen</div>
+                <div class="section-title">Station einem Preset zuweisen / Assign Station to Preset</div>
                 <div id="presetTable"></div>
             </div>
 
             <div class="section">
-                <div class="section-title">Neue Station hinzufügen</div>
+                <div class="section-title">Neue Station hinzufügen / Add Station</div>
                 <div class="add-form">
-                    <input type="text" id="newStationName" placeholder="Name (z.B. hr3)">
-                    <input type="text" id="newStationDisplay" placeholder="Anzeigename (z.B. HR3)">
+                    <input type="text" id="newStationName" placeholder="Name (z.B. / e.g. hr3)">
+                    <input type="text" id="newStationDisplay" placeholder="Anzeigename / Display Name (z.B. / e.g. HR3)">
                     <input type="text" id="newStationUrl" placeholder="Dispatcher URL">
-                    <button class="btn btn-primary" onclick="addStation()">Hinzufügen</button>
+                    <button class="btn btn-primary" onclick="addStation()">Hinzufügen / Add</button>
                 </div>
             </div>
 
             <div class="section">
-                <div class="section-title">Vorhandene Stationen</div>
+                <div class="section-title">Vorhandene Stationen / Existing Stations</div>
                 <div id="stationList"></div>
             </div>
         </div>
 
         <div id="catalogView" class="view">
             <div class="section">
-                <div class="section-title">Senderkatalog</div>
+                <div class="section-title">Senderkatalog / Station Catalog</div>
                 <div class="catalog-form">
-                    <input type="text" id="catalogQuery" placeholder="Name oder Suchbegriff">
+                    <input type="text" id="catalogQuery" placeholder="Name oder Suchbegriff / Name or Search Term">
                     <select id="catalogCountry">
-                        <option value="">Alle Länder</option>
-                        <option value="DE">Deutschland</option>
-                        <option value="AT">Österreich</option>
-                        <option value="CH">Schweiz</option>
+                        <option value="">Alle Länder / All Countries</option>
+                        <option value="DE">Deutschland / Germany</option>
+                        <option value="AT">Österreich / Austria</option>
+                        <option value="CH">Schweiz / Switzerland</option>
                         <option value="GB">UK</option>
                         <option value="US">USA</option>
-                        <option value="FR">Frankreich</option>
-                        <option value="IT">Italien</option>
-                        <option value="ES">Spanien</option>
-                        <option value="NL">Niederlande</option>
+                        <option value="FR">Frankreich / France</option>
+                        <option value="IT">Italien / Italy</option>
+                        <option value="ES">Spanien / Spain</option>
+                        <option value="NL">Niederlande / Netherlands</option>
                     </select>
                     <select id="catalogTag">
-                        <option value="">Alle Kategorien</option>
+                        <option value="">Alle Kategorien / All Categories</option>
                         <option value="news">News</option>
                         <option value="talk">Talk</option>
                         <option value="pop">Pop</option>
                         <option value="rock">Rock</option>
                         <option value="jazz">Jazz</option>
-                        <option value="classical">Klassik</option>
+                        <option value="classical">Klassik / Classical</option>
                         <option value="electronic">Electronic</option>
                         <option value="80s">80s</option>
                         <option value="90s">90s</option>
                     </select>
                     <select id="catalogOrder">
-                        <option value="clickcount">Beliebt</option>
+                        <option value="clickcount">Beliebt / Popular</option>
                         <option value="votes">Votes</option>
                         <option value="bitrate">Bitrate</option>
                         <option value="name">Name</option>
                     </select>
-                    <button class="btn btn-primary" onclick="searchCatalog()">Suchen</button>
+                    <button class="btn btn-primary" onclick="searchCatalog()">Suchen / Search</button>
                 </div>
                 <div id="catalogResults"></div>
             </div>
@@ -537,13 +557,13 @@
 
         <div id="statusView" class="view">
             <div class="section">
-                <div class="section-title">Proxy Status</div>
+                <div class="section-title">Proxy-Status / Proxy Status</div>
                 <div id="proxyStatus"></div>
             </div>
         </div>
 
         <div class="footer">
-            SoundTouch Preset-Proxy | <a href="/" onclick="location.reload(); return false;">Neu laden</a>
+            SoundTouch Preset-Proxy | <a href="/" onclick="location.reload(); return false;">Neu laden / Reload</a>
         </div>
     </div>
 
@@ -580,7 +600,7 @@
                 buildPresetTable();
                 buildStationList();
             } catch (e) {
-                showMessage('Fehler beim Laden der Stationen', 'error');
+                showMessage('Stationen konnten nicht geladen werden / Could not load stations', 'error');
             }
         }
 
@@ -592,7 +612,7 @@
                 document.getElementById('bitrateKbps').value = settings.bitrateKbps || 128;
                 document.getElementById('reconnectBackoffMs').value = (settings.reconnectBackoffMs || [250, 500, 1000, 2000, 3000]).join(',');
             } catch (e) {
-                showMessage('Fehler beim Laden der Einstellungen', 'error');
+                showMessage('Einstellungen konnten nicht geladen werden / Could not load settings', 'error');
             }
         }
 
@@ -604,8 +624,8 @@
             } catch (e) {
                 document.getElementById('setupStatus').innerHTML = `
                     <div class="setup-status setup-status-warning">
-                        <div class="setup-title">Setup-Status konnte nicht geprüft werden</div>
-                        <div class="setup-details">Der Proxy konnte den lokalen Setup-Status nicht laden.</div>
+                        <div class="setup-title">Setup-Status konnte nicht geprüft werden / Setup status could not be checked</div>
+                        <div class="setup-details">Der Proxy konnte den lokalen Setup-Status nicht laden. / The proxy could not load the local setup status.</div>
                     </div>
                 `;
             }
@@ -614,36 +634,49 @@
         function renderSetupStatus(data) {
             const el = document.getElementById('setupStatus');
             if (data.ready) {
-                el.innerHTML = `
-                    <div class="setup-status setup-status-ok">
-                        <div class="setup-title">SoundTouch ist mit AfterTouch verbunden</div>
-                        <div class="setup-details">
-                            ${escapeHtml(data.name || 'SoundTouch')} (${escapeHtml(data.speakerIp || '-')}) nutzt ${escapeHtml(data.currentMargeUrl || data.expectedMargeUrl)}.
-                        </div>
-                    </div>
-                `;
+                el.innerHTML = '';
                 return;
             }
 
-            const speakerLine = data.speakerReachable
-                ? `${escapeHtml(data.name || 'SoundTouch')} (${escapeHtml(data.speakerIp || '-')}) meldet Marge: ${escapeHtml(data.currentMargeUrl || 'nicht gesetzt')}`
-                : `SoundTouch unter ${escapeHtml(data.speakerIp || 'unbekannt')} ist nicht erreichbar: ${escapeHtml(data.message || '-')}`;
-            const migrationLink = data.migrationUrl
-                ? `<a class="btn btn-primary btn-small" href="${escapeHtml(data.migrationUrl)}" target="_blank" rel="noreferrer">Migration öffnen</a>`
-                : '';
+            const devices = Array.isArray(data.devices) && data.devices.length ? data.devices : [data];
+            const deviceHtml = devices.map(device => {
+                const reachable = !!device.speakerReachable;
+                const migrated = !!device.migrated;
+                const title = `${device.name || 'SoundTouch'} (${device.speakerIp || '-'})`;
+                const state = reachable && migrated
+                    ? 'OK'
+                    : reachable
+                        ? 'Migration erforderlich / Migration required'
+                        : 'Nicht erreichbar / Unreachable';
+                const marge = device.currentMargeUrl || 'nicht gesetzt / not set';
+                const message = device.message || '-';
+                const link = device.migrationUrl
+                    ? `<a class="btn btn-primary btn-small" href="${escapeHtml(device.migrationUrl)}" target="_blank" rel="noreferrer">Migration öffnen / Open Migration</a>`
+                    : '';
+
+                return `
+                    <div class="setup-device">
+                        <div class="setup-device-title">${escapeHtml(title)} - ${escapeHtml(state)}</div>
+                        <div class="setup-device-detail">Marge: ${escapeHtml(marge)}</div>
+                        ${reachable && !migrated ? `<div class="setup-device-detail">Erwartet / Expected: ${escapeHtml(device.expectedMargeUrl || data.expectedMargeUrl || '-')}</div>` : ''}
+                        ${!reachable ? `<div class="setup-device-detail">${escapeHtml(message)}</div>` : ''}
+                        ${link ? `<div class="setup-actions">${link}</div>` : ''}
+                    </div>
+                `;
+            }).join('');
 
             el.innerHTML = `
                 <div class="setup-status setup-status-warning">
-                    <div class="setup-title">AfterTouch-Migration erforderlich</div>
+                    <div class="setup-title">AfterTouch-Migration erforderlich / AfterTouch migration required</div>
                     <div class="setup-details">
-                        Ohne Migration fragt der SoundTouch nicht zuverlässig den lokalen AfterTouch/Proxy ab; Presets können dann auf dem Gerät hängen bleiben.
-                        <br>${speakerLine}
-                        <br>Erwartet: ${escapeHtml(data.expectedMargeUrl || '-')}
-                        <br>Wenn AfterTouch SSH verlangt: FAT-USB-Stick mit leerer Datei <code>remote_services</code> in den Speaker stecken und den Speaker neu starten.
+                        Ohne Migration funktionieren lokale Presets nicht zuverlässig.
+                        / Without migration, local presets will not work reliably.
+                        <br>Wenn AfterTouch SSH verlangt: FAT/FAT32-USB-Stick mit leerer Datei <code>remote_services</code> einstecken und den Speaker neu starten.
+                        / If AfterTouch asks for SSH: insert a FAT/FAT32 USB stick with an empty <code>remote_services</code> file and reboot the speaker.
                     </div>
+                    <div class="setup-device-list">${deviceHtml}</div>
                     <div class="setup-actions">
-                        <a class="btn btn-secondary btn-small" href="${escapeHtml(data.aftertouchUrl || '#')}" target="_blank" rel="noreferrer">AfterTouch öffnen</a>
-                        ${migrationLink}
+                        <a class="btn btn-secondary btn-small" href="${escapeHtml(data.aftertouchUrl || '#')}" target="_blank" rel="noreferrer">AfterTouch öffnen / Open AfterTouch</a>
                     </div>
                 </div>
             `;
@@ -658,7 +691,7 @@
                 .filter(v => Number.isFinite(v));
 
             if (!Number.isFinite(bufferSeconds) || !Number.isFinite(bitrateKbps) || reconnectBackoffMs.length === 0) {
-                showMessage('Bitte gültige Stream-Einstellungen eingeben', 'error');
+                showMessage('Bitte gültige Stream-Einstellungen eingeben / Please enter valid stream settings', 'error');
                 return;
             }
 
@@ -675,12 +708,12 @@
                     document.getElementById('bitrateKbps').value = settings.bitrateKbps;
                     document.getElementById('reconnectBackoffMs').value = settings.reconnectBackoffMs.join(',');
                     closeSettingsPanel();
-                    showMessage('Einstellungen wurden gespeichert', 'success');
+                    showMessage('Einstellungen wurden gespeichert / Settings saved', 'success');
                 } else {
-                    showMessage('Fehler beim Speichern der Einstellungen', 'error');
+                    showMessage('Einstellungen konnten nicht gespeichert werden / Could not save settings', 'error');
                 }
             } catch (e) {
-                showMessage('Fehler beim Speichern der Einstellungen', 'error');
+                showMessage('Einstellungen konnten nicht gespeichert werden / Could not save settings', 'error');
             }
         }
 
@@ -709,7 +742,7 @@
                             <th>Station</th>
                             <th>Dispatcher URL</th>
                             <th>Status</th>
-                            <th>Aktionen</th>
+                            <th>Aktionen / Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -726,7 +759,7 @@
                         <td class="preset-num">${slot}</td>
                         <td>
                             <select id="station-select-${slot}" onchange="updatePresetSlot(${slot}, this.value)" style="width:100%;padding:8px;background:#0a0a14;border:1px solid #2a2a3a;border-radius:6px;color:#e0e0e0;font-size:13px;">
-                                <option value="">-- bitte wählen --</option>
+                                <option value="">-- bitte wählen / select --</option>
                                 ${stations.map(s => `<option value="${s.name}" ${s.name === stationName ? 'selected' : ''}>${s.displayName || s.name}</option>`).join('')}
                             </select>
                         </td>
@@ -735,12 +768,12 @@
                         </td>
                         <td class="preset-status">
                             <span class="badge ${assignedStation ? 'badge-active' : 'badge-inactive'}">
-                                ${assignedStation ? displayName || stationName : 'Nicht belegt'}
+                                ${assignedStation ? displayName || stationName : 'Nicht belegt / Empty'}
                             </span>
                         </td>
                         <td>
                             <div class="actions">
-                                <button class="btn btn-primary btn-small" onclick="savePreset(${slot})">Speichern</button>
+                                <button class="btn btn-primary btn-small" onclick="savePreset(${slot})">Speichern / Save</button>
                                 ${stationName ? `<button class="btn btn-secondary btn-small" onclick="testStream('${stationName}')">Test</button>` : ''}
                             </div>
                         </td>
@@ -765,7 +798,7 @@
             const select = document.getElementById(`station-select-${slot}`);
             const stationName = select.value;
             if (!stationName) {
-                showMessage('Bitte erst eine Station auswählen', 'error');
+                showMessage('Bitte erst eine Station auswählen / Please select a station first', 'error');
                 return;
             }
 
@@ -776,13 +809,13 @@
                 });
                 const data = await resp.json();
                 if (data.status === 'ok') {
-                    showMessage(`Preset ${slot} wurde auf ${data.station} gesetzt`, 'success');
+                    showMessage(`Preset ${slot} wurde auf ${data.station} gesetzt / was set to ${data.station}`, 'success');
                     loadStations();
                 } else {
-                    showMessage(`Fehler: ${data.message || 'Unbekannt'}`, 'error');
+                    showMessage(`Fehler / Error: ${data.message || 'Unbekannt / Unknown'}`, 'error');
                 }
             } catch (e) {
-                showMessage('Fehler beim Speichern des Presets', 'error');
+                showMessage('Preset konnte nicht gespeichert werden / Could not save preset', 'error');
             }
         }
 
@@ -803,12 +836,12 @@
             if (order) params.set('order', order);
             params.set('limit', '40');
 
-            document.getElementById('catalogResults').innerHTML = '<div class="diagnostics">Suche Sender ...</div>';
+            document.getElementById('catalogResults').innerHTML = '<div class="diagnostics">Suche Sender ... / Searching stations ...</div>';
             try {
                 const resp = await fetch(`/api/catalog/search?${params.toString()}`);
                 const data = await resp.json();
                 if (data.status !== 'ok') {
-                    showMessage(`Katalogfehler: ${data.message || 'Unbekannt'}`, 'error');
+                    showMessage(`Katalogfehler / Catalog error: ${data.message || 'Unbekannt / Unknown'}`, 'error');
                     catalogResults = [];
                 } else {
                     catalogResults = data.stations || [];
@@ -816,13 +849,13 @@
                 buildCatalogResults();
             } catch (e) {
                 catalogResults = [];
-                document.getElementById('catalogResults').innerHTML = '<div class="diagnostics diagnostics-error">Katalog konnte nicht geladen werden.</div>';
+                document.getElementById('catalogResults').innerHTML = '<div class="diagnostics diagnostics-error">Katalog konnte nicht geladen werden. / Catalog could not be loaded.</div>';
             }
         }
 
         function buildCatalogResults() {
             if (catalogResults.length === 0) {
-                document.getElementById('catalogResults').innerHTML = '<div class="diagnostics">Keine Sender gefunden.</div>';
+                document.getElementById('catalogResults').innerHTML = '<div class="diagnostics">Keine Sender gefunden. / No stations found.</div>';
                 return;
             }
 
@@ -831,11 +864,11 @@
                     <thead>
                         <tr>
                             <th>Name</th>
-                            <th>Land</th>
+                            <th>Land / Country</th>
                             <th>Tags</th>
                             <th>Codec</th>
                             <th>Bitrate</th>
-                            <th>Aktionen</th>
+                            <th>Aktionen / Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -852,7 +885,7 @@
                         <td>
                             <div class="actions">
                                 <button class="btn btn-secondary btn-small" onclick="previewCatalog(${index})">Test</button>
-                                <button class="btn btn-primary btn-small" onclick="addCatalogStation(${index})">Hinzufügen</button>
+                                <button class="btn btn-primary btn-small" onclick="addCatalogStation(${index})">Hinzufügen / Add</button>
                                 <select id="catalog-preset-${index}" style="width:84px;font-size:11px;">
                                     <option value="">Preset</option>
                                     <option value="1">1</option>
@@ -862,7 +895,7 @@
                                     <option value="5">5</option>
                                     <option value="6">6</option>
                                 </select>
-                                <button class="btn btn-secondary btn-small" onclick="sendCatalogPreset(${index})">Setzen</button>
+                                <button class="btn btn-secondary btn-small" onclick="sendCatalogPreset(${index})">Setzen / Set</button>
                             </div>
                         </td>
                     </tr>
@@ -898,10 +931,10 @@
             });
             const data = await resp.json();
             if (data.status === 'ok') {
-                showMessage(preset ? `Sender wurde auf Preset ${preset} gesetzt` : 'Sender wurde hinzugefügt', 'success');
+                showMessage(preset ? `Sender wurde auf Preset ${preset} gesetzt / Station was set to preset ${preset}` : 'Sender wurde hinzugefügt / Station added', 'success');
                 loadStations();
             } else {
-                showMessage(`Fehler: ${data.message || 'Sender konnte nicht hinzugefügt werden'}`, 'error');
+                showMessage(`Fehler / Error: ${data.message || 'Sender konnte nicht hinzugefügt werden / Station could not be added'}`, 'error');
             }
             return data;
         }
@@ -910,7 +943,7 @@
             const select = document.getElementById(`catalog-preset-${index}`);
             const preset = parseInt(select.value, 10);
             if (!Number.isFinite(preset)) {
-                showMessage('Bitte Preset auswählen', 'error');
+                showMessage('Bitte Preset auswählen / Please select a preset', 'error');
                 return;
             }
             addCatalogStation(index, preset);
@@ -922,7 +955,7 @@
                 const data = await resp.json();
                 renderProxyStatus(data);
             } catch (e) {
-                document.getElementById('proxyStatus').innerHTML = '<div class="diagnostics diagnostics-error">Status konnte nicht geladen werden.</div>';
+                document.getElementById('proxyStatus').innerHTML = '<div class="diagnostics diagnostics-error">Status konnte nicht geladen werden. / Status could not be loaded.</div>';
             }
         }
 
@@ -935,23 +968,23 @@
 
             let html = `
                 <div class="status-grid">
-                    ${statusCard('Aktive Streams', active.length)}
+                    ${statusCard('Aktive Streams / Active Streams', active.length)}
                     ${statusCard('Reconnects', reconnects)}
-                    ${statusCard('Fehler', errors)}
-                    ${statusCard('Gesendet', formatBytes(totalBytesOut))}
+                    ${statusCard('Fehler / Errors', errors)}
+                    ${statusCard('Gesendet / Sent', formatBytes(totalBytesOut))}
                 </div>
             `;
 
-            html += '<div class="section-title">Aktuell</div>';
+            html += '<div class="section-title">Aktuell / Current</div>';
             if (active.length === 0) {
-                html += '<div class="diagnostics">Keine aktiven Streams.</div>';
+                html += '<div class="diagnostics">Keine aktiven Streams. / No active streams.</div>';
             } else {
                 html += statusTable(active, true);
             }
 
-            html += '<div class="section-title" style="margin-top:20px;">Letzte Stationen</div>';
+            html += '<div class="section-title" style="margin-top:20px;">Letzte Stationen / Recent Stations</div>';
             if (stats.length === 0) {
-                html += '<div class="diagnostics">Noch keine Stream-Aktivität.</div>';
+                html += '<div class="diagnostics">Noch keine Stream-Aktivität. / No stream activity yet.</div>';
             } else {
                 html += statusTable(stats, false);
             }
@@ -975,10 +1008,10 @@
                         <tr>
                             <th>Station</th>
                             <th>Status</th>
-                            <th>Dauer</th>
+                            <th>Dauer / Duration</th>
                             <th>Bytes</th>
                             <th>Reconnects</th>
-                            <th>Fehler</th>
+                            <th>Fehler / Errors</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -988,8 +1021,8 @@
                     <tr>
                         <td>${escapeHtml(item.station || '-')}</td>
                         <td>${escapeHtml(item.state || '-')}</td>
-                        <td>${active ? formatDuration(item.durationSeconds || 0) : `${item.ageSeconds || 0}s her`}</td>
-                        <td>${formatBytes(item.bytesIn || 0)} rein / ${formatBytes(item.bytesOut || 0)} raus</td>
+                        <td>${active ? formatDuration(item.durationSeconds || 0) : `${item.ageSeconds || 0}s her / ago`}</td>
+                        <td>${formatBytes(item.bytesIn || 0)} rein / in, ${formatBytes(item.bytesOut || 0)} raus / out</td>
                         <td>${item.reconnects || 0}</td>
                         <td class="${item.lastError ? 'diagnostics-error' : ''}">${escapeHtml(item.lastError || '-')}</td>
                     </tr>
@@ -1018,7 +1051,7 @@
             const url = document.getElementById('newStationUrl').value.trim();
 
             if (!name || !url) {
-                showMessage('Name und Dispatcher URL sind erforderlich', 'error');
+                showMessage('Name und Dispatcher URL sind erforderlich / Name and dispatcher URL are required', 'error');
                 return;
             }
 
@@ -1035,22 +1068,22 @@
                 });
                 const data = await resp.json();
                 if (data.status === 'ok') {
-                    showMessage(`Station "${name}" wurde hinzugefügt`, 'success');
+                    showMessage(`Station "${name}" wurde hinzugefügt / was added`, 'success');
                     document.getElementById('newStationName').value = '';
                     document.getElementById('newStationDisplay').value = '';
                     document.getElementById('newStationUrl').value = '';
                     loadStations();
                 } else {
-                    showMessage('Fehler beim Hinzufügen der Station', 'error');
+                    showMessage('Station konnte nicht hinzugefügt werden / Could not add station', 'error');
                 }
             } catch (e) {
-                showMessage('Fehler beim Hinzufügen der Station', 'error');
+                showMessage('Station konnte nicht hinzugefügt werden / Could not add station', 'error');
             }
         }
 
         function buildStationList() {
             if (stations.length === 0) {
-                document.getElementById('stationList').innerHTML = '<p style="color:#666;font-size:13px;">Noch keine Stationen vorhanden.</p>';
+                document.getElementById('stationList').innerHTML = '<p style="color:#666;font-size:13px;">Noch keine Stationen vorhanden. / No stations yet.</p>';
                 return;
             }
 
@@ -1059,10 +1092,10 @@
                     <thead>
                         <tr>
                             <th>Name</th>
-                            <th>Anzeigename</th>
+                            <th>Anzeigename / Display Name</th>
                             <th>Dispatcher URL</th>
                             <th>Presets</th>
-                            <th>Aktionen</th>
+                            <th>Aktionen / Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1079,7 +1112,7 @@
                             <div class="actions">
                                 <button class="btn btn-secondary btn-small" onclick="testStream('${s.name}')">Test</button>
                                 <button class="btn btn-secondary btn-small" onclick="loadDiagnostics('${s.name}')">Info</button>
-                                <button class="btn btn-secondary btn-small" onclick="deleteStation('${s.name}')">Löschen</button>
+                                <button class="btn btn-secondary btn-small" onclick="deleteStation('${s.name}')">Löschen / Delete</button>
                             </div>
                         </td>
                     </tr>
@@ -1099,7 +1132,7 @@
                 diagnostics = await resp.json();
                 renderDiagnostics();
             } catch (e) {
-                diagnostics = { ok: false, station: name, message: 'Diagnose konnte nicht geladen werden' };
+                diagnostics = { ok: false, station: name, message: 'Diagnose konnte nicht geladen werden / Diagnostics could not be loaded' };
                 renderDiagnostics();
             }
         }
@@ -1109,20 +1142,20 @@
             if (!panel || !diagnostics) return;
 
             if (diagnostics.loading) {
-                panel.innerHTML = `<div class="diagnostics">Analysiere ${escapeHtml(diagnostics.station)} ...</div>`;
+                panel.innerHTML = `<div class="diagnostics">Analysiere ${escapeHtml(diagnostics.station)} ... / Analyzing ${escapeHtml(diagnostics.station)} ...</div>`;
                 return;
             }
 
             const headers = diagnostics.headers || {};
             const proxyStats = diagnostics.lastProxyStats || {};
-            const bitrate = diagnostics.detectedBitrateKbps ? `${diagnostics.detectedBitrateKbps} kbps (${diagnostics.bitrateSource})` : 'Unbekannt';
+            const bitrate = diagnostics.detectedBitrateKbps ? `${diagnostics.detectedBitrateKbps} kbps (${diagnostics.bitrateSource})` : 'Unbekannt / Unknown';
             const state = proxyStats.state || '-';
             const lastError = proxyStats.lastError || diagnostics.message || '-';
 
             panel.innerHTML = `
                 <div class="diagnostics">
                     <div class="${diagnostics.ok ? '' : 'diagnostics-error'}">
-                        ${escapeHtml(diagnostics.displayName || diagnostics.station)}: ${diagnostics.ok ? 'Stream erreichbar' : 'Fehler'}
+                        ${escapeHtml(diagnostics.displayName || diagnostics.station)}: ${diagnostics.ok ? 'Stream erreichbar / Stream reachable' : 'Fehler / Error'}
                     </div>
                     <div class="diagnostics-grid">
                         ${diagnosticItem('Status', diagnostics.status || '-')}
@@ -1132,10 +1165,10 @@
                         ${diagnosticItem('ICY Genre', headers['icy-genre'] || '-')}
                         ${diagnosticItem('ICY Metaint', headers['icy-metaint'] || '-')}
                         ${diagnosticItem('Sample', diagnostics.sampleBytes ? `${diagnostics.sampleBytes} Bytes in ${diagnostics.sampleDurationSeconds}s` : '-')}
-                        ${diagnosticItem('Proxy Status', state)}
-                        ${diagnosticItem('Proxy Bytes', `${proxyStats.bytesIn || 0} rein / ${proxyStats.bytesOut || 0} raus`)}
-                        ${diagnosticItem('Letzter Fehler', lastError)}
-                        ${diagnosticItem('Aufgelöste URL', diagnostics.resolvedUrl || '-')}
+                        ${diagnosticItem('Proxy-Status / Proxy Status', state)}
+                        ${diagnosticItem('Proxy Bytes', `${proxyStats.bytesIn || 0} rein / in, ${proxyStats.bytesOut || 0} raus / out`)}
+                        ${diagnosticItem('Letzter Fehler / Last Error', lastError)}
+                        ${diagnosticItem('Aufgelöste URL / Resolved URL', diagnostics.resolvedUrl || '-')}
                         ${diagnosticItem('Dispatcher URL', diagnostics.dispatcherUrl || '-')}
                     </div>
                 </div>
@@ -1161,18 +1194,18 @@
         }
 
         async function deleteStation(name) {
-            if (!confirm(`Station "${name}" wirklich löschen?`)) return;
+            if (!confirm(`Station "${name}" wirklich löschen? / really delete?`)) return;
             try {
                 const resp = await fetch(`/api/stations/${name}`, { method: 'DELETE' });
                 const data = await resp.json();
                 if (data.status === 'ok') {
-                    showMessage(`Station "${name}" wurde gelöscht`, 'success');
+                    showMessage(`Station "${name}" wurde gelöscht / was deleted`, 'success');
                     loadStations();
                 } else {
-                    showMessage('Fehler beim Löschen', 'error');
+                    showMessage('Station konnte nicht gelöscht werden / Could not delete station', 'error');
                 }
             } catch (e) {
-                showMessage('Fehler beim Löschen', 'error');
+                showMessage('Station konnte nicht gelöscht werden / Could not delete station', 'error');
             }
         }
 

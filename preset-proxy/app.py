@@ -57,6 +57,7 @@ stream_stats = {}
 active_streams = {}
 
 SPEAKER_IP = os.getenv("SPEAKER_IP", "")
+SPEAKER_IPS = [ip.strip() for ip in os.getenv("SPEAKER_IPS", SPEAKER_IP).split(",") if ip.strip()]
 BASE_URL = os.getenv("BASE_URL", "http://127.0.0.1:8092")
 AFTERTOUCH_URL = os.getenv("AFTERTOUCH_URL", "http://127.0.0.1:8091")
 LOG_STREAM_CHUNKS = os.getenv("LOG_STREAM_CHUNKS", "0").lower() in ("1", "true", "yes", "on")
@@ -457,29 +458,53 @@ def xml_text(root, name):
 def speaker_setup_status():
     aftertouch_url = AFTERTOUCH_URL.rstrip("/")
     expected_marge_url = f"{aftertouch_url}/marge"
-    status = {
+    device_statuses = [speaker_device_status(ip, expected_marge_url, aftertouch_url) for ip in SPEAKER_IPS]
+    target = next((item for item in device_statuses if item["speakerIp"] == SPEAKER_IP), None)
+    if not target and device_statuses:
+        target = device_statuses[0]
+
+    all_reachable = all(item["speakerReachable"] for item in device_statuses) if device_statuses else False
+    all_migrated = all(item["migrated"] for item in device_statuses) if device_statuses else False
+
+    return {
         "status": "ok",
         "speakerIp": SPEAKER_IP,
+        "speakerIps": SPEAKER_IPS,
+        "devices": device_statuses,
+        "speakerReachable": target["speakerReachable"] if target else False,
+        "deviceId": target["deviceId"] if target else "",
+        "name": target["name"] if target else "",
+        "type": target["type"] if target else "",
+        "currentMargeUrl": target["currentMargeUrl"] if target else "",
+        "expectedMargeUrl": expected_marge_url,
+        "aftertouchUrl": aftertouch_url,
+        "proxyUrl": BASE_URL.rstrip("/"),
+        "migrationUrl": target["migrationUrl"] if target else "",
+        "migrated": target["migrated"] if target else False,
+        "ready": bool(target and target["speakerReachable"] and target["migrated"] and all_reachable and all_migrated),
+        "message": "All configured SoundTouch speakers are migrated to AfterTouch." if all_reachable and all_migrated else "One or more configured SoundTouch speakers need migration or are unreachable."
+    }
+
+def speaker_device_status(speaker_ip, expected_marge_url, aftertouch_url):
+    status = {
+        "speakerIp": speaker_ip,
         "speakerReachable": False,
         "deviceId": "",
         "name": "",
         "type": "",
         "currentMargeUrl": "",
         "expectedMargeUrl": expected_marge_url,
-        "aftertouchUrl": aftertouch_url,
-        "proxyUrl": BASE_URL.rstrip("/"),
         "migrationUrl": "",
         "migrated": False,
-        "ready": False,
         "message": ""
     }
 
-    if not SPEAKER_IP:
+    if not speaker_ip:
         status["message"] = "SPEAKER_IP is not configured."
         return status
 
     try:
-        body = http_get(f"http://{SPEAKER_IP}:8090/info", timeout=4)
+        body = http_get(f"http://{speaker_ip}:8090/info", timeout=4)
         root = ET.fromstring(body)
     except Exception as e:
         status["message"] = str(e)
@@ -508,7 +533,7 @@ def speaker_setup_status():
         status["message"] = "SoundTouch speaker points to a different Marge URL."
     else:
         status["message"] = "SoundTouch speaker is reachable but does not report an AfterTouch Marge URL."
-    log("setup.status", speaker=SPEAKER_IP, reachable=status["speakerReachable"], migrated=status["migrated"], current_marge=current_marge_url)
+    log("setup.status", speaker=speaker_ip, reachable=status["speakerReachable"], migrated=status["migrated"], current_marge=current_marge_url)
     return status
 
 class StreamHandler(BaseHTTPRequestHandler):
