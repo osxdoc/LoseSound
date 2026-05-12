@@ -336,6 +336,29 @@
         .diagnostics-error {
             color: #f44336;
         }
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(120px, 1fr));
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .status-card {
+            padding: 12px;
+            border: 1px solid #2a2a3a;
+            border-radius: 8px;
+            background: #0a0a14;
+        }
+        .status-card-label {
+            color: #666;
+            font-size: 10px;
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }
+        .status-card-value {
+            color: #e0e0e0;
+            font-size: 18px;
+            font-weight: 500;
+        }
         .settings-panel .btn {
             margin-top: 14px;
             width: 100%;
@@ -362,6 +385,9 @@
             }
             .diagnostics-grid {
                 grid-template-columns: 1fr;
+            }
+            .status-grid {
+                grid-template-columns: 1fr 1fr;
             }
             .catalog-form {
                 grid-template-columns: 1fr;
@@ -407,6 +433,7 @@
         <div class="tabs">
             <button id="tabPresets" class="tab-btn active" onclick="showView('presets')">Presets</button>
             <button id="tabCatalog" class="tab-btn" onclick="showView('catalog')">Sender suchen</button>
+            <button id="tabStatus" class="tab-btn" onclick="showView('status')">Proxy Status</button>
         </div>
 
         <div id="presetsView" class="view active">
@@ -472,6 +499,13 @@
             </div>
         </div>
 
+        <div id="statusView" class="view">
+            <div class="section">
+                <div class="section-title">Proxy Status</div>
+                <div id="proxyStatus"></div>
+            </div>
+        </div>
+
         <div class="footer">
             SoundTouch Preset-Proxy | <a href="/" onclick="location.reload(); return false;">Neu laden</a>
         </div>
@@ -483,12 +517,23 @@
         let settings = {};
         let diagnostics = null;
         let catalogResults = [];
+        let proxyStatusTimer = null;
 
         function showView(name) {
             document.getElementById('presetsView').classList.toggle('active', name === 'presets');
             document.getElementById('catalogView').classList.toggle('active', name === 'catalog');
+            document.getElementById('statusView').classList.toggle('active', name === 'status');
             document.getElementById('tabPresets').classList.toggle('active', name === 'presets');
             document.getElementById('tabCatalog').classList.toggle('active', name === 'catalog');
+            document.getElementById('tabStatus').classList.toggle('active', name === 'status');
+
+            if (name === 'status') {
+                loadProxyStatus();
+                proxyStatusTimer = proxyStatusTimer || setInterval(loadProxyStatus, 3000);
+            } else if (proxyStatusTimer) {
+                clearInterval(proxyStatusTimer);
+                proxyStatusTimer = null;
+            }
         }
 
         async function loadStations() {
@@ -779,6 +824,102 @@
                 return;
             }
             addCatalogStation(index, preset);
+        }
+
+        async function loadProxyStatus() {
+            try {
+                const resp = await fetch('/api/proxy/status');
+                const data = await resp.json();
+                renderProxyStatus(data);
+            } catch (e) {
+                document.getElementById('proxyStatus').innerHTML = '<div class="diagnostics diagnostics-error">Status konnte nicht geladen werden.</div>';
+            }
+        }
+
+        function renderProxyStatus(data) {
+            const active = data.activeStreams || [];
+            const stats = data.stationStats || [];
+            const totalBytesOut = stats.reduce((sum, item) => sum + (item.bytesOut || 0), 0);
+            const reconnects = [...active, ...stats].reduce((sum, item) => sum + (item.reconnects || 0), 0);
+            const errors = stats.filter(item => item.lastError).length;
+
+            let html = `
+                <div class="status-grid">
+                    ${statusCard('Aktive Streams', active.length)}
+                    ${statusCard('Reconnects', reconnects)}
+                    ${statusCard('Fehler', errors)}
+                    ${statusCard('Gesendet', formatBytes(totalBytesOut))}
+                </div>
+            `;
+
+            html += '<div class="section-title">Aktuell</div>';
+            if (active.length === 0) {
+                html += '<div class="diagnostics">Keine aktiven Streams.</div>';
+            } else {
+                html += statusTable(active, true);
+            }
+
+            html += '<div class="section-title" style="margin-top:20px;">Letzte Stationen</div>';
+            if (stats.length === 0) {
+                html += '<div class="diagnostics">Noch keine Stream-Aktivität.</div>';
+            } else {
+                html += statusTable(stats, false);
+            }
+
+            document.getElementById('proxyStatus').innerHTML = html;
+        }
+
+        function statusCard(label, value) {
+            return `
+                <div class="status-card">
+                    <div class="status-card-label">${escapeHtml(label)}</div>
+                    <div class="status-card-value">${escapeHtml(String(value))}</div>
+                </div>
+            `;
+        }
+
+        function statusTable(items, active) {
+            let html = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Station</th>
+                            <th>Status</th>
+                            <th>Dauer</th>
+                            <th>Bytes</th>
+                            <th>Reconnects</th>
+                            <th>Fehler</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            items.forEach(item => {
+                html += `
+                    <tr>
+                        <td>${escapeHtml(item.station || '-')}</td>
+                        <td>${escapeHtml(item.state || '-')}</td>
+                        <td>${active ? formatDuration(item.durationSeconds || 0) : `${item.ageSeconds || 0}s her`}</td>
+                        <td>${formatBytes(item.bytesIn || 0)} rein / ${formatBytes(item.bytesOut || 0)} raus</td>
+                        <td>${item.reconnects || 0}</td>
+                        <td class="${item.lastError ? 'diagnostics-error' : ''}">${escapeHtml(item.lastError || '-')}</td>
+                    </tr>
+                `;
+            });
+            html += '</tbody></table>';
+            return html;
+        }
+
+        function formatBytes(bytes) {
+            if (bytes >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+            if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+            return `${bytes} B`;
+        }
+
+        function formatDuration(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            if (mins > 0) return `${mins}m ${secs}s`;
+            return `${secs}s`;
         }
 
         async function addStation() {

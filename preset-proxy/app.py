@@ -54,6 +54,7 @@ config_lock = threading.RLock()
 config = None
 stream_stats_lock = threading.Lock()
 stream_stats = {}
+active_streams = {}
 
 SPEAKER_IP = os.getenv("SPEAKER_IP", "")
 BASE_URL = os.getenv("BASE_URL", "http://127.0.0.1:8092")
@@ -81,6 +82,57 @@ def update_stream_stats(station_name, **updates):
 def get_stream_stats(station_name):
     with stream_stats_lock:
         return copy.deepcopy(stream_stats.get(station_name, {}))
+
+def register_active_stream(stream_id, station_name, client):
+    with stream_stats_lock:
+        active_streams[stream_id] = {
+            "streamId": stream_id,
+            "station": station_name,
+            "client": client,
+            "startedAt": int(time.time()),
+            "bytesIn": 0,
+            "bytesOut": 0,
+            "reconnects": 0,
+            "state": "starting",
+            "lastError": ""
+        }
+
+def update_active_stream(stream_id, **updates):
+    with stream_stats_lock:
+        if stream_id in active_streams:
+            active_streams[stream_id].update(updates)
+            active_streams[stream_id]["updatedAt"] = int(time.time())
+
+def unregister_active_stream(stream_id):
+    with stream_stats_lock:
+        active_streams.pop(stream_id, None)
+
+def proxy_status():
+    now = int(time.time())
+    with stream_stats_lock:
+        active = copy.deepcopy(list(active_streams.values()))
+        stats = copy.deepcopy(stream_stats)
+
+    for item in active:
+        item["durationSeconds"] = max(0, now - item.get("startedAt", now))
+
+    station_stats = []
+    with config_lock:
+        station_names = sorted(config.get("stations", {}).keys())
+    for name in station_names:
+        item = stats.get(name, {})
+        if item:
+            item["station"] = name
+            if item.get("updatedAt"):
+                item["ageSeconds"] = max(0, now - item["updatedAt"])
+            station_stats.append(item)
+
+    return {
+        "status": "ok",
+        "now": now,
+        "activeStreams": active,
+        "stationStats": station_stats
+    }
 
 def default_config():
     return copy.deepcopy(DEFAULT_CONFIG)
@@ -430,6 +482,7 @@ class StreamHandler(BaseHTTPRequestHandler):
             bytesOut=0,
             lastError=""
         )
+        register_active_stream(stream_id, station_name, self.client_address[0])
 
         def producer():
             nonlocal bytes_in
@@ -460,6 +513,13 @@ class StreamHandler(BaseHTTPRequestHandler):
                             detectedBitrateKbps=bitrate_from_headers({key.lower(): value for key, value in resp.headers.items()}),
                             lastError=""
                         )
+                        update_active_stream(
+                            stream_id,
+                            state="upstream-open",
+                            upstreamStatus=resp.status,
+                            contentType=resp.headers.get("Content-Type", content_type),
+                            resolvedUrl=resolved_url
+                        )
                         while not producer_done.is_set():
                             try:
                                 chunk = resp.read(4096)
@@ -471,16 +531,19 @@ class StreamHandler(BaseHTTPRequestHandler):
                                     bytes_in += len(chunk)
                                     buffered = len(ring_buffer)
                                 update_stream_stats(station_name, state="buffering", bytesIn=bytes_in, bufferedChunks=buffered)
+                                update_active_stream(stream_id, state="buffering", bytesIn=bytes_in, bufferedChunks=buffered)
                                 producer_ready.set()
                                 if LOG_STREAM_CHUNKS and bytes_in % (256 * 1024) < len(chunk):
                                     log("stream.producer.bytes", stream_id=stream_id, bytes_in=bytes_in, buffered_chunks=buffered)
                             except (urllib.error.HTTPError, urllib.error.URLError, OSError) as e:
                                 log("stream.upstream.read_error", stream_id=stream_id, station=station_name, message=str(e))
                                 update_stream_stats(station_name, state="upstream-read-error", lastError=str(e))
+                                update_active_stream(stream_id, state="upstream-read-error", lastError=str(e))
                                 break
                 except Exception as e:
                     log("stream.upstream.error", stream_id=stream_id, station=station_name, message=str(e))
                     update_stream_stats(station_name, state="upstream-error", lastError=str(e))
+                    update_active_stream(stream_id, state="upstream-error", lastError=str(e))
 
                 if producer_done.is_set():
                     break
@@ -488,6 +551,13 @@ class StreamHandler(BaseHTTPRequestHandler):
                 backoff = backoff_ms[min(backoff_idx, len(backoff_ms) - 1)] / 1000.0
                 backoff_idx += 1
                 log("stream.upstream.retry", stream_id=stream_id, station=station_name, backoff_seconds=backoff)
+                with stream_stats_lock:
+                    if stream_id in active_streams:
+                        reconnects = active_streams[stream_id].get("reconnects", 0) + 1
+                    else:
+                        reconnects = 0
+                update_active_stream(stream_id, state="reconnecting", reconnects=reconnects, backoffSeconds=backoff)
+                update_stream_stats(station_name, state="reconnecting", reconnects=reconnects, backoffSeconds=backoff)
 
                 start_time = time.time()
                 while time.time() - start_time < backoff:
@@ -505,7 +575,9 @@ class StreamHandler(BaseHTTPRequestHandler):
             producer_thread.join(timeout=1)
             log("stream.error", stream_id=stream_id, station=station_name, message="upstream did not produce data before timeout")
             update_stream_stats(station_name, state="error", lastError="upstream did not produce data before timeout")
+            update_active_stream(stream_id, state="error", lastError="upstream did not produce data before timeout")
             self.send_error(502, "Upstream stream did not produce data")
+            unregister_active_stream(stream_id)
             return
 
         self.send_response(200)
@@ -515,6 +587,7 @@ class StreamHandler(BaseHTTPRequestHandler):
         self.end_headers()
         log("stream.response.sent", stream_id=stream_id, station=station_name)
         update_stream_stats(station_name, state="streaming")
+        update_active_stream(stream_id, state="streaming")
 
         try:
             while True:
@@ -527,22 +600,26 @@ class StreamHandler(BaseHTTPRequestHandler):
                             self.wfile.flush()
                             bytes_out += len(chunk)
                             update_stream_stats(station_name, state="streaming", bytesOut=bytes_out)
+                            update_active_stream(stream_id, state="streaming", bytesOut=bytes_out)
                             if LOG_STREAM_CHUNKS and bytes_out % (256 * 1024) < len(chunk):
                                 log("stream.consumer.bytes", stream_id=stream_id, bytes_out=bytes_out, buffered_chunks=len(ring_buffer))
                         except (BrokenPipeError, ConnectionResetError):
                             log("stream.client.disconnect", stream_id=stream_id, station=station_name, bytes_out=bytes_out)
                             update_stream_stats(station_name, state="client-disconnect", bytesIn=bytes_in, bytesOut=bytes_out)
+                            update_active_stream(stream_id, state="client-disconnect", bytesIn=bytes_in, bytesOut=bytes_out)
                             break
                     elif producer_done.is_set():
                         break
         except (BrokenPipeError, ConnectionResetError):
             log("stream.client.disconnect", stream_id=stream_id, station=station_name, bytes_out=bytes_out)
             update_stream_stats(station_name, state="client-disconnect", bytesIn=bytes_in, bytesOut=bytes_out)
+            update_active_stream(stream_id, state="client-disconnect", bytesIn=bytes_in, bytesOut=bytes_out)
         finally:
             producer_done.set()
             producer_thread.join(timeout=1)
             log("stream.end", stream_id=stream_id, station=station_name, bytes_in=bytes_in, bytes_out=bytes_out)
             update_stream_stats(station_name, state="ended", bytesIn=bytes_in, bytesOut=bytes_out)
+            unregister_active_stream(stream_id)
 
     def do_GET(self):
         parsed = urlparse(self.path)
@@ -555,6 +632,8 @@ class StreamHandler(BaseHTTPRequestHandler):
             self.handle_api_settings(path)
         elif path == "/api/catalog/search":
             self.handle_catalog_search(parsed.query)
+        elif path == "/api/proxy/status":
+            self.send_json(proxy_status())
         elif path.startswith("/api/stations/") and path.endswith("/diagnostics"):
             self.handle_station_diagnostics(path)
         elif path.startswith("/api/stations"):
