@@ -293,6 +293,8 @@ class StreamHandler(BaseHTTPRequestHandler):
 
         if path.startswith("/api/stations/") and "/preset/" in path:
             self.handle_preset_api(path)
+        elif path == "/api/stations" or path == "/api/stations/":
+            self.handle_api_stations(path)
         else:
             self.send_error(404, "Not found")
 
@@ -351,6 +353,7 @@ class StreamHandler(BaseHTTPRequestHandler):
                             "presets": data.get("presets", [])
                         }
                         save_config()
+                    log("station.add", station=name, display_name=config["stations"][name]["name"])
                     self.send_json({"status": "ok", "name": name})
                 except json.JSONDecodeError:
                     self.send_error(400, "Invalid JSON")
@@ -407,6 +410,7 @@ class StreamHandler(BaseHTTPRequestHandler):
         with config_lock:
             del config["stations"][name]
             save_config()
+        log("station.delete", station=name)
         self.send_json({"status": "ok", "deleted": name})
 
     def serve_station_json(self, station_name):
