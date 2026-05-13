@@ -358,6 +358,31 @@
             font-size: 12px;
             text-transform: uppercase;
         }
+        .toggle-field {
+            grid-column: 1 / -1;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 12px;
+            border: 1px solid #2a2a3a;
+            border-radius: 6px;
+            background: #0a0a14;
+        }
+        .toggle-field input {
+            width: 18px;
+            height: 18px;
+            accent-color: #00a8e0;
+        }
+        .toggle-label {
+            color: #ddd;
+            font-size: 13px;
+        }
+        .toggle-help {
+            display: block;
+            margin-top: 2px;
+            color: #777;
+            font-size: 12px;
+        }
         .current-station {
             font-size: 11px;
             color: #555;
@@ -458,6 +483,8 @@
                 buffer: 'Puffer (s)',
                 bitrate: 'Bitrate (kbps)',
                 reconnect: 'Reconnect (ms)',
+                audioProxy: 'Neue Presets standardmäßig über Proxy',
+                audioProxyHelp: 'Jeder Preset-Slot kann beim Setzen separat gewählt werden.',
                 save: 'Speichern',
                 tabPresets: 'Presets',
                 tabCatalog: 'Sender suchen',
@@ -481,6 +508,7 @@
                 colPreset: 'Preset',
                 colStation: 'Station',
                 colDispatcher: 'Dispatcher URL',
+                colPlayback: 'Wiedergabe',
                 colStatus: 'Status',
                 colActions: 'Aktionen',
                 colCountry: 'Land',
@@ -521,6 +549,10 @@
                 proxyStatusLabel: 'Proxy-Status',
                 lastError: 'Letzter Fehler',
                 resolvedUrl: 'Aufgelöste URL',
+                effectiveStreamUrl: 'Stream-URL für SoundTouch',
+                playbackMode: 'Standard-Wiedergabe',
+                playbackProxy: 'über Proxy',
+                playbackDirect: 'direkt',
                 errLoadStations: 'Stationen konnten nicht geladen werden',
                 errLoadSettings: 'Einstellungen konnten nicht geladen werden',
                 errSaveSettings: 'Einstellungen konnten nicht gespeichert werden',
@@ -567,6 +599,8 @@
                 buffer: 'Buffer (s)',
                 bitrate: 'Bitrate (kbps)',
                 reconnect: 'Reconnect (ms)',
+                audioProxy: 'Use proxy by default for new presets',
+                audioProxyHelp: 'Each preset slot can still be chosen separately when setting it.',
                 save: 'Save',
                 tabPresets: 'Presets',
                 tabCatalog: 'Browse Stations',
@@ -590,6 +624,7 @@
                 colPreset: 'Preset',
                 colStation: 'Station',
                 colDispatcher: 'Dispatcher URL',
+                colPlayback: 'Playback',
                 colStatus: 'Status',
                 colActions: 'Actions',
                 colCountry: 'Country',
@@ -630,6 +665,10 @@
                 proxyStatusLabel: 'Proxy Status',
                 lastError: 'Last Error',
                 resolvedUrl: 'Resolved URL',
+                effectiveStreamUrl: 'Stream URL for SoundTouch',
+                playbackMode: 'Default playback',
+                playbackProxy: 'via proxy',
+                playbackDirect: 'direct',
                 errLoadStations: 'Could not load stations',
                 errLoadSettings: 'Could not load settings',
                 errSaveSettings: 'Could not save settings',
@@ -714,6 +753,13 @@
                                 <label for="reconnectBackoffMs" id="reconnectLabel"></label>
                                 <input type="text" id="reconnectBackoffMs" placeholder="250,500,1000,2000,3000">
                             </div>
+                            <label class="toggle-field" for="audioProxyEnabled">
+                                <input type="checkbox" id="audioProxyEnabled">
+                                <span>
+                                    <span class="toggle-label" id="audioProxyLabel"></span>
+                                    <span class="toggle-help" id="audioProxyHelp"></span>
+                                </span>
+                            </label>
                         </div>
                         <button class="btn btn-primary" onclick="saveSettings()" id="saveSettingsBtn"></button>
                     </div>
@@ -822,6 +868,8 @@
             document.getElementById('bufferLabel').textContent = t.buffer;
             document.getElementById('bitrateLabel').textContent = t.bitrate;
             document.getElementById('reconnectLabel').textContent = t.reconnect;
+            document.getElementById('audioProxyLabel').textContent = t.audioProxy;
+            document.getElementById('audioProxyHelp').textContent = t.audioProxyHelp;
             document.getElementById('saveSettingsBtn').textContent = t.save;
             document.getElementById('tabPresets').textContent = t.tabPresets;
             document.getElementById('tabCatalog').textContent = t.tabCatalog;
@@ -885,6 +933,7 @@
                 document.getElementById('bufferSeconds').value = settings.bufferSeconds || 3;
                 document.getElementById('bitrateKbps').value = settings.bitrateKbps || 128;
                 document.getElementById('reconnectBackoffMs').value = (settings.reconnectBackoffMs || [250, 500, 1000, 2000, 3000]).join(',');
+                document.getElementById('audioProxyEnabled').checked = settings.audioProxyEnabled !== false;
             } catch (e) {
                 showMessage(t.errLoadSettings, 'error');
             }
@@ -957,6 +1006,7 @@
         async function saveSettings() {
             const bufferSeconds = parseInt(document.getElementById('bufferSeconds').value, 10);
             const bitrateKbps = parseInt(document.getElementById('bitrateKbps').value, 10);
+            const audioProxyEnabled = document.getElementById('audioProxyEnabled').checked;
             const reconnectBackoffMs = document.getElementById('reconnectBackoffMs').value
                 .split(',')
                 .map(v => parseInt(v.trim(), 10))
@@ -971,7 +1021,7 @@
                 const resp = await fetch('/api/settings', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ bufferSeconds, bitrateKbps, reconnectBackoffMs })
+                    body: JSON.stringify({ bufferSeconds, bitrateKbps, reconnectBackoffMs, audioProxyEnabled })
                 });
                 const data = await resp.json();
                 if (data.status === 'ok') {
@@ -979,6 +1029,8 @@
                     document.getElementById('bufferSeconds').value = settings.bufferSeconds;
                     document.getElementById('bitrateKbps').value = settings.bitrateKbps;
                     document.getElementById('reconnectBackoffMs').value = settings.reconnectBackoffMs.join(',');
+                    document.getElementById('audioProxyEnabled').checked = settings.audioProxyEnabled !== false;
+                    buildPresetTable();
                     closeSettingsPanel();
                     showMessage(t.settingsSaved, 'success');
                 } else {
@@ -1004,6 +1056,22 @@
             }
         });
 
+        function defaultPlaybackMode() {
+            return settings.audioProxyEnabled === false ? 'direct' : 'proxy';
+        }
+
+        function playbackModeOptions(selected) {
+            const mode = selected === 'direct' ? 'direct' : 'proxy';
+            return `
+                <option value="proxy" ${mode === 'proxy' ? 'selected' : ''}>${t.playbackProxy}</option>
+                <option value="direct" ${mode === 'direct' ? 'selected' : ''}>${t.playbackDirect}</option>
+            `;
+        }
+
+        function playbackModeLabel(mode) {
+            return mode === 'direct' ? t.playbackDirect : t.playbackProxy;
+        }
+
         function buildPresetTable() {
             const slots = [1, 2, 3, 4, 5, 6];
             let html = `
@@ -1013,6 +1081,7 @@
                             <th>${t.colPreset}</th>
                             <th>${t.colStation}</th>
                             <th>${t.colDispatcher}</th>
+                            <th>${t.colPlayback}</th>
                             <th>${t.colStatus}</th>
                             <th>${t.colActions}</th>
                         </tr>
@@ -1025,6 +1094,9 @@
                 const stationName = assignedStation ? assignedStation.name : '';
                 const displayName = assignedStation ? assignedStation.displayName : '';
                 const dispatcherUrl = assignedStation ? assignedStation.dispatcherUrl : '';
+                const playbackMode = assignedStation && assignedStation.presetModes
+                    ? assignedStation.presetModes[String(slot)] || defaultPlaybackMode()
+                    : defaultPlaybackMode();
 
                 html += `
                     <tr>
@@ -1038,6 +1110,11 @@
                         <td>
                             <input type="text" id="url-${slot}" class="url-input" value="${dispatcherUrl}" placeholder="Dispatcher URL" style="font-size:11px;color:#666;">
                         </td>
+                        <td>
+                            <select id="playback-mode-${slot}" style="width:100%;padding:8px;background:#0a0a14;border:1px solid #2a2a3a;border-radius:6px;color:#e0e0e0;font-size:13px;">
+                                ${playbackModeOptions(playbackMode)}
+                            </select>
+                        </td>
                         <td class="preset-status">
                             <span class="badge ${assignedStation ? 'badge-active' : 'badge-inactive'}">
                                 ${assignedStation ? displayName || stationName : t.empty}
@@ -1046,7 +1123,7 @@
                         <td>
                             <div class="actions">
                                 <button class="btn btn-primary btn-small" onclick="savePreset(${slot})">${t.saveBtnPreset}</button>
-                                ${stationName ? `<button class="btn btn-secondary btn-small" onclick="testStream('${stationName}')">Test</button>` : ''}
+                                ${stationName ? `<button class="btn btn-secondary btn-small" onclick="testStream('${stationName}', ${slot})">Test</button>` : ''}
                             </div>
                         </td>
                     </tr>
@@ -1062,13 +1139,19 @@
                 const station = stations.find(s => s.name === stationName);
                 if (station) {
                     document.getElementById(`url-${slot}`).value = station.dispatcherUrl || '';
+                    const modeSelect = document.getElementById(`playback-mode-${slot}`);
+                    if (modeSelect && (!station.presetModes || !station.presetModes[String(slot)])) {
+                        modeSelect.value = defaultPlaybackMode();
+                    }
                 }
             }
         }
 
         async function savePreset(slot) {
             const select = document.getElementById(`station-select-${slot}`);
+            const modeSelect = document.getElementById(`playback-mode-${slot}`);
             const stationName = select.value;
+            const playbackMode = modeSelect ? modeSelect.value : defaultPlaybackMode();
             if (!stationName) {
                 showMessage(t.errSelectStation, 'error');
                 return;
@@ -1077,7 +1160,8 @@
             try {
                 const resp = await fetch(`/api/stations/${stationName}/preset/${slot}`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ playbackMode })
                 });
                 const data = await resp.json();
                 if (data.status === 'ok') {
@@ -1091,8 +1175,18 @@
             }
         }
 
-        function testStream(stationName) {
-            window.open(`/${stationName}`, '_blank');
+        function testStream(stationName, slot = null) {
+            const station = stations.find(s => s.name === stationName);
+            const modeSelect = slot ? document.getElementById(`playback-mode-${slot}`) : null;
+            const playbackMode = modeSelect
+                ? modeSelect.value
+                : station && station.presetModes && slot
+                    ? station.presetModes[String(slot)] || defaultPlaybackMode()
+                    : defaultPlaybackMode();
+            const url = playbackMode === 'direct' && station && station.dispatcherUrl
+                ? station.dispatcherUrl
+                : `/${stationName}`;
+            window.open(url, '_blank');
         }
 
         async function searchCatalog() {
@@ -1167,6 +1261,9 @@
                                     <option value="5">5</option>
                                     <option value="6">6</option>
                                 </select>
+                                <select id="catalog-mode-${index}" style="width:96px;font-size:11px;">
+                                    ${playbackModeOptions(defaultPlaybackMode())}
+                                </select>
                                 <button class="btn btn-secondary btn-small" onclick="sendCatalogPreset(${index})">${t.setBtnPreset}</button>
                             </div>
                         </td>
@@ -1185,14 +1282,15 @@
             }
         }
 
-        async function addCatalogStation(index, preset = null) {
+        async function addCatalogStation(index, preset = null, playbackMode = defaultPlaybackMode()) {
             const station = catalogResults[index];
             if (!station) return null;
 
             const body = {
                 name: station.name,
                 displayName: station.name,
-                dispatcherUrl: station.urlResolved || station.url
+                dispatcherUrl: station.urlResolved || station.url,
+                playbackMode
             };
             if (preset) body.preset = preset;
 
@@ -1213,12 +1311,14 @@
 
         function sendCatalogPreset(index) {
             const select = document.getElementById(`catalog-preset-${index}`);
+            const modeSelect = document.getElementById(`catalog-mode-${index}`);
             const preset = parseInt(select.value, 10);
+            const playbackMode = modeSelect ? modeSelect.value : defaultPlaybackMode();
             if (!Number.isFinite(preset)) {
                 showMessage(t.errSelectPreset, 'error');
                 return;
             }
-            addCatalogStation(index, preset);
+            addCatalogStation(index, preset, playbackMode);
         }
 
         async function loadProxyStatus() {
@@ -1397,12 +1497,15 @@
             `;
 
             stations.forEach(s => {
+                const presetText = s.presets && s.presets.length > 0
+                    ? s.presets.map(slot => `${slot} (${playbackModeLabel(s.presetModes && s.presetModes[String(slot)] || defaultPlaybackMode())})`).join(', ')
+                    : '-';
                 html += `
                     <tr>
                         <td>${s.name}</td>
                         <td>${s.displayName || '-'}</td>
                         <td style="font-size:11px;color:#666;max-width:300px;overflow:hidden;text-overflow:ellipsis;">${s.dispatcherUrl}</td>
-                        <td>${s.presets && s.presets.length > 0 ? s.presets.join(', ') : '-'}</td>
+                        <td>${escapeHtml(presetText)}</td>
                         <td>
                             <div class="actions">
                                 <button class="btn btn-secondary btn-small" onclick="testStream('${s.name}')">Test</button>
@@ -1450,6 +1553,7 @@
             const reconnects = proxyStats.reconnects || 0;
             const reconnectHistory = proxyStats.reconnectHistory || [];
             const streamEvents = proxyStats.streamEvents || [];
+            const playbackMode = diagnostics.playbackMode === 'direct' ? t.playbackDirect : t.playbackProxy;
 
             let reconnectSection = '';
             if (reconnects > 0 || reconnectHistory.length > 0) {
@@ -1516,6 +1620,8 @@
                         ${diagnosticItem('ICY Genre', headers['icy-genre'] || '-')}
                         ${diagnosticItem('ICY Metaint', headers['icy-metaint'] || '-')}
                         ${diagnosticItem('Sample', diagnostics.sampleBytes ? `${diagnostics.sampleBytes} Bytes in ${diagnostics.sampleDurationSeconds}s` : '-')}
+                        ${diagnosticItem(t.playbackMode, playbackMode)}
+                        ${diagnosticItem(t.effectiveStreamUrl, diagnostics.effectiveStreamUrl || '-')}
                         ${diagnosticItem(t.proxyStatusLabel, state)}
                         ${diagnosticItem('Proxy Bytes', `${formatBytes(proxyStats.bytesIn || 0)} ${t.bytesIn}, ${formatBytes(proxyStats.bytesOut || 0)} ${t.bytesOut}`)}
                         ${diagnosticItem(t.lastEvent, formatLastEvent(lastEvent))}

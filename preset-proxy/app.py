@@ -32,7 +32,8 @@ def parse_backoff_ms(value):
 DEFAULT_SETTINGS = {
     "bufferSeconds": int(os.getenv("BUFFER_SECONDS", "3")),
     "bitrateKbps": int(os.getenv("BITRATE_KBPS", "128")),
-    "reconnectBackoffMs": parse_backoff_ms(os.getenv("RECONNECT_BACKOFF_MS", "250,500,1000,2000,3000"))
+    "reconnectBackoffMs": parse_backoff_ms(os.getenv("RECONNECT_BACKOFF_MS", "250,500,1000,2000,3000")),
+    "audioProxyEnabled": os.getenv("AUDIO_PROXY_ENABLED", "1").lower() in ("1", "true", "yes", "on")
 }
 DEFAULT_CONFIG = {
     "settings": DEFAULT_SETTINGS.copy(),
@@ -40,12 +41,14 @@ DEFAULT_CONFIG = {
         "hr3": {
             "name": "HR3",
             "dispatcherUrl": "https://dispatcher.rndfnk.com/hr/hr3/live/mp3/high",
-            "presets": []
+            "presets": [],
+            "presetModes": {}
         },
         "youfm": {
             "name": "YOU FM",
             "dispatcherUrl": "https://dispatcher.rndfnk.com/hr/youfm/live/mp3/high",
-            "presets": []
+            "presets": [],
+            "presetModes": {}
         }
     }
 }
@@ -186,11 +189,30 @@ def normalize_settings(data):
             value = default
         return max(minimum, min(maximum, value))
 
+    def bool_setting(name, default):
+        value = data.get(name, default)
+        if value is None:
+            return default
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, str):
+            return value.strip().lower() in ("1", "true", "yes", "on")
+        return bool(value)
+
     return {
         "bufferSeconds": bounded_int("bufferSeconds", DEFAULT_SETTINGS["bufferSeconds"], 1, 30),
         "bitrateKbps": bounded_int("bitrateKbps", DEFAULT_SETTINGS["bitrateKbps"], 32, 320),
-        "reconnectBackoffMs": parse_backoff_ms(data.get("reconnectBackoffMs", DEFAULT_SETTINGS["reconnectBackoffMs"]))
+        "reconnectBackoffMs": parse_backoff_ms(data.get("reconnectBackoffMs", DEFAULT_SETTINGS["reconnectBackoffMs"])),
+        "audioProxyEnabled": bool_setting("audioProxyEnabled", DEFAULT_SETTINGS["audioProxyEnabled"])
     }
+
+def normalize_playback_mode(value, default=None):
+    if value in ("proxy", "direct"):
+        return value
+    if default in ("proxy", "direct"):
+        return default
+    settings = normalize_settings(config.get("settings") if config else DEFAULT_SETTINGS)
+    return "proxy" if settings["audioProxyEnabled"] else "direct"
 
 def normalize_config(data):
     changed = False
@@ -206,9 +228,20 @@ def normalize_config(data):
         data["settings"] = normalized_settings
         changed = True
 
+    default_mode = "proxy" if normalized_settings["audioProxyEnabled"] else "direct"
     for station in data["stations"].values():
         if "presets" not in station or not isinstance(station["presets"], list):
             station["presets"] = []
+            changed = True
+        if "presetModes" not in station or not isinstance(station["presetModes"], dict):
+            station["presetModes"] = {}
+            changed = True
+        valid_modes = {}
+        for slot in station["presets"]:
+            slot_key = str(slot)
+            valid_modes[slot_key] = normalize_playback_mode(station["presetModes"].get(slot_key), default_mode)
+        if station["presetModes"] != valid_modes:
+            station["presetModes"] = valid_modes
             changed = True
 
     return data, changed
@@ -219,7 +252,8 @@ def stream_settings():
     return (
         settings["bufferSeconds"],
         settings["bitrateKbps"],
-        settings["reconnectBackoffMs"]
+        settings["reconnectBackoffMs"],
+        settings["audioProxyEnabled"]
     )
 
 def load_config():
@@ -246,6 +280,7 @@ def save_config():
 
 def get_station_json(station_name):
     base = BASE_URL.rstrip("/")
+    station = config["stations"][station_name]
     stream_url = f"{base}/{station_name}"
     return {
         "audio": {
@@ -255,21 +290,28 @@ def get_station_json(station_name):
         },
         "imageUrl": "",
         "isRealtime": True,
-        "name": config["stations"][station_name]["name"],
+        "name": station["name"],
+        "playbackMode": "proxy",
         "streamUrl": stream_url,
         "streamType": "liveRadio"
     }
 
-def set_preset_on_speaker(station_name, slot):
+def preset_location_for_station(station_name, playback_mode=None):
+    station = config["stations"][station_name]
+    playback_mode = normalize_playback_mode(playback_mode)
+    if playback_mode == "proxy":
+        return f"{BASE_URL.rstrip('/')}/{station_name}.json", "proxy"
+    return station["dispatcherUrl"], "direct"
+
+def set_preset_on_speaker(station_name, slot, playback_mode=None):
     if not SPEAKER_IP:
         return {
             "ok": False,
             "message": "SPEAKER_IP is not configured. Run scripts/setup.py or set SPEAKER_IP in .env."
         }
 
-    base = BASE_URL.rstrip("/")
     station = config["stations"][station_name]
-    location = f"{base}/{station_name}.json"
+    location, playback_mode = preset_location_for_station(station_name, playback_mode)
     now = int(time.time())
     preset_xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <preset id="{slot}" createdOn="{now}" updatedOn="{now}">
@@ -279,17 +321,19 @@ def set_preset_on_speaker(station_name, slot):
 </preset>"""
 
     url = f"http://{SPEAKER_IP}:8090/storePreset"
-    log("preset.store.start", station=station_name, slot=slot, speaker=SPEAKER_IP, location=location)
+    log("preset.store.start", station=station_name, slot=slot, speaker=SPEAKER_IP, location=location, playback_mode=playback_mode)
     try:
         req = urllib.request.Request(url, data=preset_xml.encode("utf-8"))
         req.add_header("Content-Type", "application/xml")
         req.add_header("Accept", "application/xml")
         with urllib.request.urlopen(req, timeout=5) as resp:
             body = resp.read().decode("utf-8", errors="replace")
-            log("preset.store.ok", station=station_name, slot=slot, status=resp.status, bytes=len(body))
+            log("preset.store.ok", station=station_name, slot=slot, status=resp.status, bytes=len(body), playback_mode=playback_mode)
             return {
                 "ok": True,
                 "status": resp.status,
+                "location": location,
+                "playbackMode": playback_mode,
                 "body": body
             }
     except urllib.error.HTTPError as e:
@@ -330,6 +374,7 @@ def bitrate_from_headers(headers):
 def inspect_station_stream(station_name):
     with config_lock:
         station = copy.deepcopy(config["stations"].get(station_name))
+        settings = normalize_settings(config.get("settings"))
     if not station:
         return {"ok": False, "message": "Station not found"}
 
@@ -379,6 +424,8 @@ def inspect_station_stream(station_name):
                 "station": station_name,
                 "displayName": station.get("name", station_name),
                 "dispatcherUrl": station["dispatcherUrl"],
+                "playbackMode": "proxy" if settings["audioProxyEnabled"] else "direct",
+                "effectiveStreamUrl": f"{BASE_URL.rstrip('/')}/{station_name}" if settings["audioProxyEnabled"] else station["dispatcherUrl"],
                 "resolvedUrl": resp.url,
                 "status": resp.status,
                 "contentType": resp.headers.get("Content-Type", ""),
@@ -401,6 +448,8 @@ def inspect_station_stream(station_name):
             "station": station_name,
             "displayName": station.get("name", station_name),
             "dispatcherUrl": station["dispatcherUrl"],
+            "playbackMode": "proxy" if settings["audioProxyEnabled"] else "direct",
+            "effectiveStreamUrl": f"{BASE_URL.rstrip('/')}/{station_name}" if settings["audioProxyEnabled"] else station["dispatcherUrl"],
             "message": message,
             "lastProxyStats": stats
         }
@@ -580,7 +629,7 @@ class StreamHandler(BaseHTTPRequestHandler):
             self.send_error(404, "Station not found")
             return
 
-        buffer_seconds, bitrate_kbps, backoff_ms = stream_settings()
+        buffer_seconds, bitrate_kbps, backoff_ms, default_audio_proxy_enabled = stream_settings()
         stream_id = f"{station_name}-{int(time.time() * 1000)}-{threading.get_ident()}"
         buffer_bytes_target = (buffer_seconds * bitrate_kbps * 1000) // 8
         max_chunks = max(8, buffer_bytes_target // 4096)
@@ -599,6 +648,7 @@ class StreamHandler(BaseHTTPRequestHandler):
             buffer_target_bytes=buffer_bytes_target,
             buffer_seconds=buffer_seconds,
             bitrate_kbps=bitrate_kbps,
+            default_audio_proxy_enabled=default_audio_proxy_enabled,
             max_chunks=max_chunks
         )
         update_stream_stats(
@@ -921,7 +971,8 @@ class StreamHandler(BaseHTTPRequestHandler):
                             "name": name,
                             "displayName": data["name"],
                             "dispatcherUrl": data["dispatcherUrl"],
-                            "presets": data["presets"]
+                            "presets": data["presets"],
+                            "presetModes": data.get("presetModes", {})
                         })
                 self.send_json(stations_out)
             elif self.command == "POST":
@@ -937,7 +988,8 @@ class StreamHandler(BaseHTTPRequestHandler):
                         config["stations"][name] = {
                             "name": data.get("displayName", data.get("name", name)),
                             "dispatcherUrl": data.get("dispatcherUrl", ""),
-                            "presets": data.get("presets", [])
+                            "presets": data.get("presets", []),
+                            "presetModes": data.get("presetModes", {})
                         }
                         save_config()
                     log("station.add", station=name, display_name=config["stations"][name]["name"])
@@ -980,7 +1032,8 @@ class StreamHandler(BaseHTTPRequestHandler):
             "settings.update",
             buffer_seconds=settings["bufferSeconds"],
             bitrate_kbps=settings["bitrateKbps"],
-            reconnect_backoff_ms=",".join(str(value) for value in settings["reconnectBackoffMs"])
+            reconnect_backoff_ms=",".join(str(value) for value in settings["reconnectBackoffMs"]),
+            audio_proxy_enabled=settings["audioProxyEnabled"]
         )
         self.send_json({"status": "ok", "settings": settings})
 
@@ -1028,22 +1081,32 @@ class StreamHandler(BaseHTTPRequestHandler):
             config["stations"][name] = {
                 "name": display_name,
                 "dispatcherUrl": dispatcher_url,
-                "presets": []
+                "presets": [],
+                "presetModes": {}
             }
             save_config()
         log("catalog.station.add", station=name, display_name=display_name)
 
         slot = data.get("preset")
         if isinstance(slot, int) and 1 <= slot <= 6:
-            result = set_preset_on_speaker(name, slot)
+            playback_mode = normalize_playback_mode(data.get("playbackMode"))
+            result = set_preset_on_speaker(name, slot, playback_mode)
             if result["ok"]:
                 with config_lock:
                     for station in config["stations"].values():
                         if slot in station["presets"]:
                             station["presets"].remove(slot)
+                        station.setdefault("presetModes", {}).pop(str(slot), None)
                     config["stations"][name]["presets"].append(slot)
+                    config["stations"][name].setdefault("presetModes", {})[str(slot)] = result.get("playbackMode", playback_mode)
                     save_config()
-                self.send_json({"status": "ok", "name": name, "preset": slot})
+                self.send_json({
+                    "status": "ok",
+                    "name": name,
+                    "preset": slot,
+                    "playbackMode": result.get("playbackMode", playback_mode),
+                    "location": result.get("location", "")
+                })
             else:
                 self.send_json({"status": "error", "name": name, "message": result.get("message", "Unknown speaker error")})
             return
@@ -1068,20 +1131,36 @@ class StreamHandler(BaseHTTPRequestHandler):
                 return
 
             if self.command == "POST":
-                result = set_preset_on_speaker(station_name, slot)
+                playback_mode = None
+                length = int(self.headers.get("Content-Length", 0))
+                if length:
+                    body = self.rfile.read(length)
+                    try:
+                        data = json.loads(body)
+                    except json.JSONDecodeError:
+                        self.send_error(400, "Invalid JSON")
+                        return
+                    playback_mode = data.get("playbackMode")
+                playback_mode = normalize_playback_mode(playback_mode)
+
+                result = set_preset_on_speaker(station_name, slot, playback_mode)
                 if result["ok"]:
                     with config_lock:
                         for station in config["stations"].values():
                             if slot in station["presets"]:
                                 station["presets"].remove(slot)
+                            station.setdefault("presetModes", {}).pop(str(slot), None)
                         station = config["stations"][station_name]
                         station["presets"].append(slot)
+                        station.setdefault("presetModes", {})[str(slot)] = result.get("playbackMode", playback_mode)
                         save_config()
 
                     self.send_json({
                         "status": "ok",
                         "preset": slot,
                         "station": station_name,
+                        "playbackMode": result.get("playbackMode", playback_mode),
+                        "location": result.get("location", ""),
                         "speaker_response": result.get("body", "")[:200] or "ok"
                     })
                 else:
@@ -1128,7 +1207,7 @@ def main():
     load_config()
     port = int(os.getenv("LISTEN_PORT", "8092"))
     server = ThreadingHTTPServer(("0.0.0.0", port), StreamHandler)
-    buffer_seconds, bitrate_kbps, backoff_ms = stream_settings()
+    buffer_seconds, bitrate_kbps, backoff_ms, default_audio_proxy_enabled = stream_settings()
     log(
         "proxy.start",
         port=port,
@@ -1136,7 +1215,8 @@ def main():
         speaker_ip=SPEAKER_IP,
         buffer_seconds=buffer_seconds,
         bitrate_kbps=bitrate_kbps,
-        reconnect_backoff_ms=",".join(str(value) for value in backoff_ms)
+        reconnect_backoff_ms=",".join(str(value) for value in backoff_ms),
+        default_audio_proxy_enabled=default_audio_proxy_enabled
     )
     server.serve_forever()
 
