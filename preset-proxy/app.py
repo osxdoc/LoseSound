@@ -83,8 +83,11 @@ def http_get(url, timeout=4):
 def update_stream_stats(station_name, **updates):
     with stream_stats_lock:
         stats = stream_stats.setdefault(station_name, {})
+        now = int(time.time())
+        if "startedAt" not in stats and "startedAt" not in updates:
+            stats["startedAt"] = now
         stats.update(updates)
-        stats["updatedAt"] = int(time.time())
+        stats["updatedAt"] = now
 
 def get_stream_stats(station_name):
     with stream_stats_lock:
@@ -132,6 +135,10 @@ def proxy_status():
             item["station"] = name
             if item.get("updatedAt"):
                 item["ageSeconds"] = max(0, now - item["updatedAt"])
+            if item.get("startedAt") and item.get("endedAt"):
+                item["durationSeconds"] = max(0, item["endedAt"] - item["startedAt"])
+            elif item.get("startedAt"):
+                item["durationSeconds"] = max(0, now - item["startedAt"])
             station_stats.append(item)
 
     return {
@@ -573,9 +580,13 @@ class StreamHandler(BaseHTTPRequestHandler):
             station_name,
             state="starting",
             client=self.client_address[0],
+            startedAt=int(time.time()),
             bytesIn=0,
             bytesOut=0,
-            lastError=""
+            reconnects=0,
+            lastError="",
+            endedAt=None,
+            reconnectHistory=[]
         )
         register_active_stream(stream_id, station_name, self.client_address[0])
 
@@ -651,6 +662,17 @@ class StreamHandler(BaseHTTPRequestHandler):
                         reconnects = active_streams[stream_id].get("reconnects", 0) + 1
                     else:
                         reconnects = 0
+                    reconnect_event = {
+                        "at": int(time.time()),
+                        "reason": stream_stats.get(station_name, {}).get("lastError", ""),
+                        "backoffSeconds": backoff
+                    }
+                    stats = stream_stats.setdefault(station_name, {})
+                    history = list(stats.get("reconnectHistory", []))
+                    history.append(reconnect_event)
+                    if len(history) > 20:
+                        history = history[-20:]
+                    stats["reconnectHistory"] = history
                 update_active_stream(stream_id, state="reconnecting", reconnects=reconnects, backoffSeconds=backoff)
                 update_stream_stats(station_name, state="reconnecting", reconnects=reconnects, backoffSeconds=backoff)
 
@@ -713,7 +735,7 @@ class StreamHandler(BaseHTTPRequestHandler):
             producer_done.set()
             producer_thread.join(timeout=1)
             log("stream.end", stream_id=stream_id, station=station_name, bytes_in=bytes_in, bytes_out=bytes_out)
-            update_stream_stats(station_name, state="ended", bytesIn=bytes_in, bytesOut=bytes_out)
+            update_stream_stats(station_name, state="ended", bytesIn=bytes_in, bytesOut=bytes_out, endedAt=int(time.time()))
             unregister_active_stream(stream_id)
 
     def do_GET(self):

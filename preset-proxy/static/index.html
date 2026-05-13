@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="de" id="htmlRoot">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -449,6 +449,214 @@
             }
         }
     </style>
+    <script>
+        const I18N = {
+            de: {
+                running: 'Läuft',
+                settings: 'Einstellungen',
+                streamSettings: 'Stream-Einstellungen',
+                buffer: 'Puffer (s)',
+                bitrate: 'Bitrate (kbps)',
+                reconnect: 'Reconnect (ms)',
+                save: 'Speichern',
+                tabPresets: 'Presets',
+                tabCatalog: 'Sender suchen',
+                tabStatus: 'Proxy-Status',
+                assignStation: 'Station einem Preset zuweisen',
+                addStation: 'Neue Station hinzufügen',
+                existingStations: 'Vorhandene Stationen',
+                stationCatalog: 'Senderkatalog',
+                proxyStatus: 'Proxy-Status',
+                reload: 'Neu laden',
+                allCountries: 'Alle Länder',
+                allCategories: 'Alle Kategorien',
+                classical: 'Klassik',
+                popular: 'Beliebt',
+                nameOrSearch: 'Name oder Suchbegriff',
+                search: 'Suchen',
+                selectPlaceholder: '-- bitte wählen --',
+                namePlaceholder: 'Name (z.B. hr3)',
+                displayNamePlaceholder: 'Anzeigename (z.B. HR3)',
+                add: 'Hinzufügen',
+                colPreset: 'Preset',
+                colStation: 'Station',
+                colDispatcher: 'Dispatcher URL',
+                colStatus: 'Status',
+                colActions: 'Aktionen',
+                colCountry: 'Land',
+                colDuration: 'Dauer',
+                colErrors: 'Fehler',
+                colDisplayName: 'Anzeigename',
+                empty: 'Nicht belegt',
+                saveBtnPreset: 'Speichern',
+                setBtnPreset: 'Setzen',
+                activeStreams: 'Aktive Streams',
+                sent: 'Gesendet',
+                current: 'Aktuell',
+                noActiveStreams: 'Keine aktiven Streams.',
+                recentStations: 'Letzte Stationen',
+                noStreamActivity: 'Noch keine Stream-Aktivität.',
+                ago: 'her',
+                started: 'Start',
+                ended: 'Ende',
+                duration: 'Dauer',
+                reconnectHistory: 'Reconnect-Verlauf',
+                reconnectReason: 'Ursache',
+                reconnectAt: 'Zeit',
+                noReconnects: 'Keine Reconnects aufgezeichnet',
+                bytesIn: 'rein',
+                bytesOut: 'raus',
+                streamReachable: 'Stream erreichbar',
+                error: 'Fehler',
+                unknown: 'Unbekannt',
+                proxyStatusLabel: 'Proxy-Status',
+                lastError: 'Letzter Fehler',
+                resolvedUrl: 'Aufgelöste URL',
+                errLoadStations: 'Stationen konnten nicht geladen werden',
+                errLoadSettings: 'Einstellungen konnten nicht geladen werden',
+                errSaveSettings: 'Einstellungen konnten nicht gespeichert werden',
+                settingsSaved: 'Einstellungen wurden gespeichert',
+                errInvalidSettings: 'Bitte gültige Stream-Einstellungen eingeben',
+                errSelectStation: 'Bitte erst eine Station auswählen',
+                presetSet: (slot, station) => `Preset ${slot} wurde auf ${station} gesetzt`,
+                errSavePreset: 'Preset konnte nicht gespeichert werden',
+                errSelectPreset: 'Bitte Preset auswählen',
+                stationAdded: (name) => `Station "${name}" wurde hinzugefügt`,
+                errAddStation: 'Station konnte nicht hinzugefügt werden',
+                errNameUrl: 'Name und Dispatcher URL sind erforderlich',
+                stationDeleted: (name) => `Station "${name}" wurde gelöscht`,
+                errDeleteStation: 'Station konnte nicht gelöscht werden',
+                confirmDelete: (name) => `Station "${name}" wirklich löschen?`,
+                noStations: 'Noch keine Stationen vorhanden.',
+                catalogError: (msg) => `Katalogfehler: ${msg}`,
+                errLoadCatalog: 'Katalog konnte nicht geladen werden.',
+                noStationsFound: 'Keine Sender gefunden.',
+                searchingStations: 'Suche Sender ...',
+                stationSetToPreset: (preset) => `Sender wurde auf Preset ${preset} gesetzt`,
+                stationAddedSimple: 'Sender wurde hinzugefügt',
+                errStationNotAdded: 'Sender konnte nicht hinzugefügt werden',
+                analyzing: (name) => `Analysiere ${name} ...`,
+                setupStatusFail: 'Setup-Status konnte nicht geprüft werden',
+                setupStatusFailDetail: 'Der Proxy konnte den lokalen Setup-Status nicht laden.',
+                migrationRequired: 'Migration erforderlich',
+                unreachable: 'Nicht erreichbar',
+                margeNotSet: 'nicht gesetzt',
+                expected: 'Erwartet',
+                openMigration: 'Migration öffnen',
+                openAfterTouch: 'AfterTouch öffnen',
+                migrationBanner: 'AfterTouch-Migration erforderlich',
+                migrationDetail: 'Ohne Migration funktionieren lokale Presets nicht zuverlässig.',
+                migrationSsh: 'Wenn AfterTouch SSH verlangt: FAT/FAT32-USB-Stick mit leerer Datei <code>remote_services</code> einstecken und den Speaker neu starten.',
+                statusCouldNotLoad: 'Status konnte nicht geladen werden.',
+                diagCouldNotLoad: 'Diagnose konnte nicht geladen werden',
+                deleteStation: 'Löschen',
+            },
+            en: {
+                running: 'Running',
+                settings: 'Settings',
+                streamSettings: 'Stream Settings',
+                buffer: 'Buffer (s)',
+                bitrate: 'Bitrate (kbps)',
+                reconnect: 'Reconnect (ms)',
+                save: 'Save',
+                tabPresets: 'Presets',
+                tabCatalog: 'Browse Stations',
+                tabStatus: 'Proxy Status',
+                assignStation: 'Assign Station to Preset',
+                addStation: 'Add Station',
+                existingStations: 'Existing Stations',
+                stationCatalog: 'Station Catalog',
+                proxyStatus: 'Proxy Status',
+                reload: 'Reload',
+                allCountries: 'All Countries',
+                allCategories: 'All Categories',
+                classical: 'Classical',
+                popular: 'Popular',
+                nameOrSearch: 'Name or Search Term',
+                search: 'Search',
+                selectPlaceholder: '-- select --',
+                namePlaceholder: 'Name (e.g. hr3)',
+                displayNamePlaceholder: 'Display Name (e.g. HR3)',
+                add: 'Add',
+                colPreset: 'Preset',
+                colStation: 'Station',
+                colDispatcher: 'Dispatcher URL',
+                colStatus: 'Status',
+                colActions: 'Actions',
+                colCountry: 'Country',
+                colDuration: 'Duration',
+                colErrors: 'Errors',
+                colDisplayName: 'Display Name',
+                empty: 'Empty',
+                saveBtnPreset: 'Save',
+                setBtnPreset: 'Set',
+                activeStreams: 'Active Streams',
+                sent: 'Sent',
+                current: 'Current',
+                noActiveStreams: 'No active streams.',
+                recentStations: 'Recent Stations',
+                noStreamActivity: 'No stream activity yet.',
+                ago: 'ago',
+                started: 'Start',
+                ended: 'End',
+                duration: 'Duration',
+                reconnectHistory: 'Reconnect History',
+                reconnectReason: 'Reason',
+                reconnectAt: 'Time',
+                noReconnects: 'No reconnects recorded',
+                bytesIn: 'in',
+                bytesOut: 'out',
+                streamReachable: 'Stream reachable',
+                error: 'Error',
+                unknown: 'Unknown',
+                proxyStatusLabel: 'Proxy Status',
+                lastError: 'Last Error',
+                resolvedUrl: 'Resolved URL',
+                errLoadStations: 'Could not load stations',
+                errLoadSettings: 'Could not load settings',
+                errSaveSettings: 'Could not save settings',
+                settingsSaved: 'Settings saved',
+                errInvalidSettings: 'Please enter valid stream settings',
+                errSelectStation: 'Please select a station first',
+                presetSet: (slot, station) => `Preset ${slot} was set to ${station}`,
+                errSavePreset: 'Could not save preset',
+                errSelectPreset: 'Please select a preset',
+                stationAdded: (name) => `Station "${name}" was added`,
+                errAddStation: 'Could not add station',
+                errNameUrl: 'Name and dispatcher URL are required',
+                stationDeleted: (name) => `Station "${name}" was deleted`,
+                errDeleteStation: 'Could not delete station',
+                confirmDelete: (name) => `Really delete station "${name}"?`,
+                noStations: 'No stations yet.',
+                catalogError: (msg) => `Catalog error: ${msg}`,
+                errLoadCatalog: 'Catalog could not be loaded.',
+                noStationsFound: 'No stations found.',
+                searchingStations: 'Searching stations ...',
+                stationSetToPreset: (preset) => `Station was set to preset ${preset}`,
+                stationAddedSimple: 'Station added',
+                errStationNotAdded: 'Station could not be added',
+                analyzing: (name) => `Analyzing ${name} ...`,
+                setupStatusFail: 'Setup status could not be checked',
+                setupStatusFailDetail: 'The proxy could not load the local setup status.',
+                migrationRequired: 'Migration required',
+                unreachable: 'Unreachable',
+                margeNotSet: 'not set',
+                expected: 'Expected',
+                openMigration: 'Open Migration',
+                openAfterTouch: 'Open AfterTouch',
+                migrationBanner: 'AfterTouch migration required',
+                migrationDetail: 'Without migration, local presets will not work reliably.',
+                migrationSsh: 'If AfterTouch asks for SSH: insert a FAT/FAT32 USB stick with an empty <code>remote_services</code> file and reboot the speaker.',
+                statusCouldNotLoad: 'Status could not be loaded.',
+                diagCouldNotLoad: 'Diagnostics could not be loaded',
+                deleteStation: 'Delete',
+            }
+        };
+
+        const lang = (navigator.language || 'en').startsWith('de') ? 'de' : 'en';
+        const t = I18N[lang];
+        document.getElementById('htmlRoot').lang = lang;
+    </script>
 </head>
 <body>
     <div class="container">
@@ -457,27 +665,27 @@
             <div class="header-actions">
                 <div class="status">
                     <div class="status-dot"></div>
-                    <span>Läuft / Running</span>
+                    <span id="statusLabel"></span>
                 </div>
                 <div class="settings-menu">
-                    <button class="icon-btn" onclick="toggleSettingsPanel()" aria-label="Einstellungen / Settings" title="Einstellungen / Settings">⚙</button>
+                    <button class="icon-btn" onclick="toggleSettingsPanel()" id="settingsBtn">⚙</button>
                     <div id="settingsPanel" class="settings-panel">
-                        <div class="settings-panel-title">Stream-Einstellungen / Stream Settings</div>
+                        <div class="settings-panel-title" id="streamSettingsTitle"></div>
                         <div class="settings-grid">
                             <div class="field">
-                                <label for="bufferSeconds">Puffer / Buffer (s)</label>
+                                <label for="bufferSeconds" id="bufferLabel"></label>
                                 <input type="number" id="bufferSeconds" min="1" max="30" step="1">
                             </div>
                             <div class="field">
-                                <label for="bitrateKbps">Bitrate (kbps)</label>
+                                <label for="bitrateKbps" id="bitrateLabel"></label>
                                 <input type="number" id="bitrateKbps" min="32" max="320" step="1">
                             </div>
                             <div class="field">
-                                <label for="reconnectBackoffMs">Reconnect (ms)</label>
+                                <label for="reconnectBackoffMs" id="reconnectLabel"></label>
                                 <input type="text" id="reconnectBackoffMs" placeholder="250,500,1000,2000,3000">
                             </div>
                         </div>
-                        <button class="btn btn-primary" onclick="saveSettings()">Speichern / Save</button>
+                        <button class="btn btn-primary" onclick="saveSettings()" id="saveSettingsBtn"></button>
                     </div>
                 </div>
             </div>
@@ -487,69 +695,69 @@
         <div id="setupStatus"></div>
 
         <div class="tabs">
-            <button id="tabPresets" class="tab-btn active" onclick="showView('presets')">Presets</button>
-            <button id="tabCatalog" class="tab-btn" onclick="showView('catalog')">Sender suchen / Browse Stations</button>
-            <button id="tabStatus" class="tab-btn" onclick="showView('status')">Proxy-Status / Proxy Status</button>
+            <button id="tabPresets" class="tab-btn active" onclick="showView('presets')"></button>
+            <button id="tabCatalog" class="tab-btn" onclick="showView('catalog')"></button>
+            <button id="tabStatus" class="tab-btn" onclick="showView('status')"></button>
         </div>
 
         <div id="presetsView" class="view active">
             <div class="section">
-                <div class="section-title">Station einem Preset zuweisen / Assign Station to Preset</div>
+                <div class="section-title" id="assignStationTitle"></div>
                 <div id="presetTable"></div>
             </div>
 
             <div class="section">
-                <div class="section-title">Neue Station hinzufügen / Add Station</div>
+                <div class="section-title" id="addStationTitle"></div>
                 <div class="add-form">
-                    <input type="text" id="newStationName" placeholder="Name (z.B. / e.g. hr3)">
-                    <input type="text" id="newStationDisplay" placeholder="Anzeigename / Display Name (z.B. / e.g. HR3)">
+                    <input type="text" id="newStationName">
+                    <input type="text" id="newStationDisplay">
                     <input type="text" id="newStationUrl" placeholder="Dispatcher URL">
-                    <button class="btn btn-primary" onclick="addStation()">Hinzufügen / Add</button>
+                    <button class="btn btn-primary" onclick="addStation()" id="addStationBtn"></button>
                 </div>
             </div>
 
             <div class="section">
-                <div class="section-title">Vorhandene Stationen / Existing Stations</div>
+                <div class="section-title" id="existingStationsTitle"></div>
                 <div id="stationList"></div>
             </div>
         </div>
 
         <div id="catalogView" class="view">
             <div class="section">
-                <div class="section-title">Senderkatalog / Station Catalog</div>
+                <div class="section-title" id="stationCatalogTitle"></div>
                 <div class="catalog-form">
-                    <input type="text" id="catalogQuery" placeholder="Name oder Suchbegriff / Name or Search Term">
+                    <input type="text" id="catalogQuery">
                     <select id="catalogCountry">
-                        <option value="">Alle Länder / All Countries</option>
-                        <option value="DE">Deutschland / Germany</option>
-                        <option value="AT">Österreich / Austria</option>
-                        <option value="CH">Schweiz / Switzerland</option>
+                        <option value="" id="optAllCountries"></option>
+                        <option value="DE" id="optDE"></option>
+                        <option value="AT" id="optAT"></option>
+                        <option value="CH" id="optCH"></option>
                         <option value="GB">UK</option>
                         <option value="US">USA</option>
-                        <option value="FR">Frankreich / France</option>
-                        <option value="IT">Italien / Italy</option>
-                        <option value="ES">Spanien / Spain</option>
-                        <option value="NL">Niederlande / Netherlands</option>
+                        <option value="FR" id="optFR"></option>
+                        <option value="IT" id="optIT"></option>
+                        <option value="ES" id="optES"></option>
+                        <option value="NL" id="optNL"></option>
                     </select>
                     <select id="catalogTag">
-                        <option value="">Alle Kategorien / All Categories</option>
+                        <option value="" id="optAllCategories"></option>
                         <option value="news">News</option>
                         <option value="talk">Talk</option>
                         <option value="pop">Pop</option>
                         <option value="rock">Rock</option>
                         <option value="jazz">Jazz</option>
-                        <option value="classical">Klassik / Classical</option>
+                        <option value="classical" id="optClassical"></option>
                         <option value="electronic">Electronic</option>
                         <option value="80s">80s</option>
                         <option value="90s">90s</option>
                     </select>
                     <select id="catalogOrder">
-                        <option value="clickcount">Beliebt / Popular</option>
+                        <option value="clickcount" id="optPopular"></option>
                         <option value="votes">Votes</option>
                         <option value="bitrate">Bitrate</option>
                         <option value="name">Name</option>
                     </select>
-                    <button class="btn btn-primary" onclick="searchCatalog()">Suchen / Search</button>
+                    <button class="btn btn-primary" onclick="searchCatalog()" id="searchBtn"></button>
                 </div>
                 <div id="catalogResults"></div>
             </div>
@@ -557,13 +765,13 @@
 
         <div id="statusView" class="view">
             <div class="section">
-                <div class="section-title">Proxy-Status / Proxy Status</div>
+                <div class="section-title" id="proxyStatusTitle"></div>
                 <div id="proxyStatus"></div>
             </div>
         </div>
 
         <div class="footer">
-            SoundTouch Preset-Proxy | <a href="/" onclick="location.reload(); return false;">Neu laden / Reload</a>
+            SoundTouch Preset-Proxy | <a href="/" onclick="location.reload(); return false;" id="reloadLink"></a>
         </div>
     </div>
 
@@ -575,6 +783,42 @@
         let catalogResults = [];
         let proxyStatusTimer = null;
         let setupStatusTimer = null;
+
+        function applyI18n() {
+            document.getElementById('statusLabel').textContent = t.running;
+            document.getElementById('settingsBtn').setAttribute('aria-label', t.settings);
+            document.getElementById('settingsBtn').setAttribute('title', t.settings);
+            document.getElementById('streamSettingsTitle').textContent = t.streamSettings;
+            document.getElementById('bufferLabel').textContent = t.buffer;
+            document.getElementById('bitrateLabel').textContent = t.bitrate;
+            document.getElementById('reconnectLabel').textContent = t.reconnect;
+            document.getElementById('saveSettingsBtn').textContent = t.save;
+            document.getElementById('tabPresets').textContent = t.tabPresets;
+            document.getElementById('tabCatalog').textContent = t.tabCatalog;
+            document.getElementById('tabStatus').textContent = t.tabStatus;
+            document.getElementById('assignStationTitle').textContent = t.assignStation;
+            document.getElementById('addStationTitle').textContent = t.addStation;
+            document.getElementById('addStationBtn').textContent = t.add;
+            document.getElementById('existingStationsTitle').textContent = t.existingStations;
+            document.getElementById('newStationName').placeholder = t.namePlaceholder;
+            document.getElementById('newStationDisplay').placeholder = t.displayNamePlaceholder;
+            document.getElementById('stationCatalogTitle').textContent = t.stationCatalog;
+            document.getElementById('catalogQuery').placeholder = t.nameOrSearch;
+            document.getElementById('optAllCountries').textContent = t.allCountries;
+            document.getElementById('optDE').textContent = lang === 'de' ? 'Deutschland' : 'Germany';
+            document.getElementById('optAT').textContent = lang === 'de' ? 'Österreich' : 'Austria';
+            document.getElementById('optCH').textContent = lang === 'de' ? 'Schweiz' : 'Switzerland';
+            document.getElementById('optFR').textContent = lang === 'de' ? 'Frankreich' : 'France';
+            document.getElementById('optIT').textContent = lang === 'de' ? 'Italien' : 'Italy';
+            document.getElementById('optES').textContent = lang === 'de' ? 'Spanien' : 'Spain';
+            document.getElementById('optNL').textContent = lang === 'de' ? 'Niederlande' : 'Netherlands';
+            document.getElementById('optAllCategories').textContent = t.allCategories;
+            document.getElementById('optClassical').textContent = t.classical;
+            document.getElementById('optPopular').textContent = t.popular;
+            document.getElementById('searchBtn').textContent = t.search;
+            document.getElementById('proxyStatusTitle').textContent = t.proxyStatus;
+            document.getElementById('reloadLink').textContent = t.reload;
+        }
 
         function showView(name) {
             document.getElementById('presetsView').classList.toggle('active', name === 'presets');
@@ -600,7 +844,7 @@
                 buildPresetTable();
                 buildStationList();
             } catch (e) {
-                showMessage('Stationen konnten nicht geladen werden / Could not load stations', 'error');
+                showMessage(t.errLoadStations, 'error');
             }
         }
 
@@ -612,7 +856,7 @@
                 document.getElementById('bitrateKbps').value = settings.bitrateKbps || 128;
                 document.getElementById('reconnectBackoffMs').value = (settings.reconnectBackoffMs || [250, 500, 1000, 2000, 3000]).join(',');
             } catch (e) {
-                showMessage('Einstellungen konnten nicht geladen werden / Could not load settings', 'error');
+                showMessage(t.errLoadSettings, 'error');
             }
         }
 
@@ -624,8 +868,8 @@
             } catch (e) {
                 document.getElementById('setupStatus').innerHTML = `
                     <div class="setup-status setup-status-warning">
-                        <div class="setup-title">Setup-Status konnte nicht geprüft werden / Setup status could not be checked</div>
-                        <div class="setup-details">Der Proxy konnte den lokalen Setup-Status nicht laden. / The proxy could not load the local setup status.</div>
+                        <div class="setup-title">${t.setupStatusFail}</div>
+                        <div class="setup-details">${t.setupStatusFailDetail}</div>
                     </div>
                 `;
             }
@@ -646,19 +890,19 @@
                 const state = reachable && migrated
                     ? 'OK'
                     : reachable
-                        ? 'Migration erforderlich / Migration required'
-                        : 'Nicht erreichbar / Unreachable';
-                const marge = device.currentMargeUrl || 'nicht gesetzt / not set';
+                        ? t.migrationRequired
+                        : t.unreachable;
+                const marge = device.currentMargeUrl || t.margeNotSet;
                 const message = device.message || '-';
                 const link = device.migrationUrl
-                    ? `<a class="btn btn-primary btn-small" href="${escapeHtml(device.migrationUrl)}" target="_blank" rel="noreferrer">Migration öffnen / Open Migration</a>`
+                    ? `<a class="btn btn-primary btn-small" href="${escapeHtml(device.migrationUrl)}" target="_blank" rel="noreferrer">${t.openMigration}</a>`
                     : '';
 
                 return `
                     <div class="setup-device">
                         <div class="setup-device-title">${escapeHtml(title)} - ${escapeHtml(state)}</div>
                         <div class="setup-device-detail">Marge: ${escapeHtml(marge)}</div>
-                        ${reachable && !migrated ? `<div class="setup-device-detail">Erwartet / Expected: ${escapeHtml(device.expectedMargeUrl || data.expectedMargeUrl || '-')}</div>` : ''}
+                        ${reachable && !migrated ? `<div class="setup-device-detail">${t.expected}: ${escapeHtml(device.expectedMargeUrl || data.expectedMargeUrl || '-')}</div>` : ''}
                         ${!reachable ? `<div class="setup-device-detail">${escapeHtml(message)}</div>` : ''}
                         ${link ? `<div class="setup-actions">${link}</div>` : ''}
                     </div>
@@ -667,16 +911,14 @@
 
             el.innerHTML = `
                 <div class="setup-status setup-status-warning">
-                    <div class="setup-title">AfterTouch-Migration erforderlich / AfterTouch migration required</div>
+                    <div class="setup-title">${t.migrationBanner}</div>
                     <div class="setup-details">
-                        Ohne Migration funktionieren lokale Presets nicht zuverlässig.
-                        / Without migration, local presets will not work reliably.
-                        <br>Wenn AfterTouch SSH verlangt: FAT/FAT32-USB-Stick mit leerer Datei <code>remote_services</code> einstecken und den Speaker neu starten.
-                        / If AfterTouch asks for SSH: insert a FAT/FAT32 USB stick with an empty <code>remote_services</code> file and reboot the speaker.
+                        ${t.migrationDetail}
+                        <br>${t.migrationSsh}
                     </div>
                     <div class="setup-device-list">${deviceHtml}</div>
                     <div class="setup-actions">
-                        <a class="btn btn-secondary btn-small" href="${escapeHtml(data.aftertouchUrl || '#')}" target="_blank" rel="noreferrer">AfterTouch öffnen / Open AfterTouch</a>
+                        <a class="btn btn-secondary btn-small" href="${escapeHtml(data.aftertouchUrl || '#')}" target="_blank" rel="noreferrer">${t.openAfterTouch}</a>
                     </div>
                 </div>
             `;
@@ -691,7 +933,7 @@
                 .filter(v => Number.isFinite(v));
 
             if (!Number.isFinite(bufferSeconds) || !Number.isFinite(bitrateKbps) || reconnectBackoffMs.length === 0) {
-                showMessage('Bitte gültige Stream-Einstellungen eingeben / Please enter valid stream settings', 'error');
+                showMessage(t.errInvalidSettings, 'error');
                 return;
             }
 
@@ -708,12 +950,12 @@
                     document.getElementById('bitrateKbps').value = settings.bitrateKbps;
                     document.getElementById('reconnectBackoffMs').value = settings.reconnectBackoffMs.join(',');
                     closeSettingsPanel();
-                    showMessage('Einstellungen wurden gespeichert / Settings saved', 'success');
+                    showMessage(t.settingsSaved, 'success');
                 } else {
-                    showMessage('Einstellungen konnten nicht gespeichert werden / Could not save settings', 'error');
+                    showMessage(t.errSaveSettings, 'error');
                 }
             } catch (e) {
-                showMessage('Einstellungen konnten nicht gespeichert werden / Could not save settings', 'error');
+                showMessage(t.errSaveSettings, 'error');
             }
         }
 
@@ -738,11 +980,11 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>Preset</th>
-                            <th>Station</th>
-                            <th>Dispatcher URL</th>
-                            <th>Status</th>
-                            <th>Aktionen / Actions</th>
+                            <th>${t.colPreset}</th>
+                            <th>${t.colStation}</th>
+                            <th>${t.colDispatcher}</th>
+                            <th>${t.colStatus}</th>
+                            <th>${t.colActions}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -759,7 +1001,7 @@
                         <td class="preset-num">${slot}</td>
                         <td>
                             <select id="station-select-${slot}" onchange="updatePresetSlot(${slot}, this.value)" style="width:100%;padding:8px;background:#0a0a14;border:1px solid #2a2a3a;border-radius:6px;color:#e0e0e0;font-size:13px;">
-                                <option value="">-- bitte wählen / select --</option>
+        <option value="">-- ${t.selectPlaceholder} --</option>
                                 ${stations.map(s => `<option value="${s.name}" ${s.name === stationName ? 'selected' : ''}>${s.displayName || s.name}</option>`).join('')}
                             </select>
                         </td>
@@ -768,12 +1010,12 @@
                         </td>
                         <td class="preset-status">
                             <span class="badge ${assignedStation ? 'badge-active' : 'badge-inactive'}">
-                                ${assignedStation ? displayName || stationName : 'Nicht belegt / Empty'}
+                                ${assignedStation ? displayName || stationName : t.empty}
                             </span>
                         </td>
                         <td>
                             <div class="actions">
-                                <button class="btn btn-primary btn-small" onclick="savePreset(${slot})">Speichern / Save</button>
+                                <button class="btn btn-primary btn-small" onclick="savePreset(${slot})">${t.saveBtnPreset}</button>
                                 ${stationName ? `<button class="btn btn-secondary btn-small" onclick="testStream('${stationName}')">Test</button>` : ''}
                             </div>
                         </td>
@@ -798,7 +1040,7 @@
             const select = document.getElementById(`station-select-${slot}`);
             const stationName = select.value;
             if (!stationName) {
-                showMessage('Bitte erst eine Station auswählen / Please select a station first', 'error');
+                showMessage(t.errSelectStation, 'error');
                 return;
             }
 
@@ -809,13 +1051,13 @@
                 });
                 const data = await resp.json();
                 if (data.status === 'ok') {
-                    showMessage(`Preset ${slot} wurde auf ${data.station} gesetzt / was set to ${data.station}`, 'success');
+                    showMessage(t.presetSet(slot, data.station), 'success');
                     loadStations();
                 } else {
-                    showMessage(`Fehler / Error: ${data.message || 'Unbekannt / Unknown'}`, 'error');
+                    showMessage(`${t.error}: ${data.message || t.unknown}`, 'error');
                 }
             } catch (e) {
-                showMessage('Preset konnte nicht gespeichert werden / Could not save preset', 'error');
+                showMessage(t.errSavePreset, 'error');
             }
         }
 
@@ -836,12 +1078,12 @@
             if (order) params.set('order', order);
             params.set('limit', '40');
 
-            document.getElementById('catalogResults').innerHTML = '<div class="diagnostics">Suche Sender ... / Searching stations ...</div>';
+            document.getElementById('catalogResults').innerHTML = `<div class="diagnostics">${t.searchingStations}</div>`;
             try {
                 const resp = await fetch(`/api/catalog/search?${params.toString()}`);
                 const data = await resp.json();
                 if (data.status !== 'ok') {
-                    showMessage(`Katalogfehler / Catalog error: ${data.message || 'Unbekannt / Unknown'}`, 'error');
+                    showMessage(t.catalogError(data.message || t.unknown), 'error');
                     catalogResults = [];
                 } else {
                     catalogResults = data.stations || [];
@@ -849,13 +1091,13 @@
                 buildCatalogResults();
             } catch (e) {
                 catalogResults = [];
-                document.getElementById('catalogResults').innerHTML = '<div class="diagnostics diagnostics-error">Katalog konnte nicht geladen werden. / Catalog could not be loaded.</div>';
+                document.getElementById('catalogResults').innerHTML = `<div class="diagnostics diagnostics-error">${t.errLoadCatalog}</div>`;
             }
         }
 
         function buildCatalogResults() {
             if (catalogResults.length === 0) {
-                document.getElementById('catalogResults').innerHTML = '<div class="diagnostics">Keine Sender gefunden. / No stations found.</div>';
+                document.getElementById('catalogResults').innerHTML = `<div class="diagnostics">${t.noStationsFound}</div>`;
                 return;
             }
 
@@ -864,11 +1106,11 @@
                     <thead>
                         <tr>
                             <th>Name</th>
-                            <th>Land / Country</th>
+                            <th>${t.colCountry}</th>
                             <th>Tags</th>
                             <th>Codec</th>
                             <th>Bitrate</th>
-                            <th>Aktionen / Actions</th>
+                            <th>${t.colActions}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -885,9 +1127,9 @@
                         <td>
                             <div class="actions">
                                 <button class="btn btn-secondary btn-small" onclick="previewCatalog(${index})">Test</button>
-                                <button class="btn btn-primary btn-small" onclick="addCatalogStation(${index})">Hinzufügen / Add</button>
+                                <button class="btn btn-primary btn-small" onclick="addCatalogStation(${index})">${t.add}</button>
                                 <select id="catalog-preset-${index}" style="width:84px;font-size:11px;">
-                                    <option value="">Preset</option>
+                                    <option value="">${t.colPreset}</option>
                                     <option value="1">1</option>
                                     <option value="2">2</option>
                                     <option value="3">3</option>
@@ -895,7 +1137,7 @@
                                     <option value="5">5</option>
                                     <option value="6">6</option>
                                 </select>
-                                <button class="btn btn-secondary btn-small" onclick="sendCatalogPreset(${index})">Setzen / Set</button>
+                                <button class="btn btn-secondary btn-small" onclick="sendCatalogPreset(${index})">${t.setBtnPreset}</button>
                             </div>
                         </td>
                     </tr>
@@ -931,10 +1173,10 @@
             });
             const data = await resp.json();
             if (data.status === 'ok') {
-                showMessage(preset ? `Sender wurde auf Preset ${preset} gesetzt / Station was set to preset ${preset}` : 'Sender wurde hinzugefügt / Station added', 'success');
+                showMessage(preset ? t.stationSetToPreset(preset) : t.stationAddedSimple, 'success');
                 loadStations();
             } else {
-                showMessage(`Fehler / Error: ${data.message || 'Sender konnte nicht hinzugefügt werden / Station could not be added'}`, 'error');
+                showMessage(`${t.error}: ${data.message || t.errStationNotAdded}`, 'error');
             }
             return data;
         }
@@ -943,7 +1185,7 @@
             const select = document.getElementById(`catalog-preset-${index}`);
             const preset = parseInt(select.value, 10);
             if (!Number.isFinite(preset)) {
-                showMessage('Bitte Preset auswählen / Please select a preset', 'error');
+                showMessage(t.errSelectPreset, 'error');
                 return;
             }
             addCatalogStation(index, preset);
@@ -955,7 +1197,7 @@
                 const data = await resp.json();
                 renderProxyStatus(data);
             } catch (e) {
-                document.getElementById('proxyStatus').innerHTML = '<div class="diagnostics diagnostics-error">Status konnte nicht geladen werden. / Status could not be loaded.</div>';
+                document.getElementById('proxyStatus').innerHTML = `<div class="diagnostics diagnostics-error">${t.statusCouldNotLoad}</div>`;
             }
         }
 
@@ -968,23 +1210,23 @@
 
             let html = `
                 <div class="status-grid">
-                    ${statusCard('Aktive Streams / Active Streams', active.length)}
+                    ${statusCard(t.activeStreams, active.length)}
                     ${statusCard('Reconnects', reconnects)}
-                    ${statusCard('Fehler / Errors', errors)}
-                    ${statusCard('Gesendet / Sent', formatBytes(totalBytesOut))}
+                    ${statusCard(t.colErrors, errors)}
+                    ${statusCard(t.sent, formatBytes(totalBytesOut))}
                 </div>
             `;
 
-            html += '<div class="section-title">Aktuell / Current</div>';
+            html += `<div class="section-title">${t.current}</div>`;
             if (active.length === 0) {
-                html += '<div class="diagnostics">Keine aktiven Streams. / No active streams.</div>';
+                html += `<div class="diagnostics">${t.noActiveStreams}</div>`;
             } else {
                 html += statusTable(active, true);
             }
 
-            html += '<div class="section-title" style="margin-top:20px;">Letzte Stationen / Recent Stations</div>';
+            html += `<div class="section-title" style="margin-top:20px;">${t.recentStations}</div>`;
             if (stats.length === 0) {
-                html += '<div class="diagnostics">Noch keine Stream-Aktivität. / No stream activity yet.</div>';
+                html += `<div class="diagnostics">${t.noStreamActivity}</div>`;
             } else {
                 html += statusTable(stats, false);
             }
@@ -1006,23 +1248,30 @@
                 <table>
                     <thead>
                         <tr>
-                            <th>Station</th>
-                            <th>Status</th>
-                            <th>Dauer / Duration</th>
+                            <th>${t.colStation}</th>
+                            <th>${t.colStatus}</th>
+                            <th>${active ? t.colDuration : t.started}</th>
+                            ${active ? '' : `<th>${t.ended}</th><th>${t.duration}</th>`}
                             <th>Bytes</th>
                             <th>Reconnects</th>
-                            <th>Fehler / Errors</th>
+                            <th>${t.colErrors}</th>
                         </tr>
                     </thead>
                     <tbody>
             `;
             items.forEach(item => {
+                const startedStr = item.startedAt ? formatTimestamp(item.startedAt) : '-';
+                const endedStr = item.endedAt ? formatTimestamp(item.endedAt) : '-';
+                const durationStr = item.durationSeconds != null ? formatDuration(item.durationSeconds) : '-';
                 html += `
                     <tr>
                         <td>${escapeHtml(item.station || '-')}</td>
                         <td>${escapeHtml(item.state || '-')}</td>
-                        <td>${active ? formatDuration(item.durationSeconds || 0) : `${item.ageSeconds || 0}s her / ago`}</td>
-                        <td>${formatBytes(item.bytesIn || 0)} rein / in, ${formatBytes(item.bytesOut || 0)} raus / out</td>
+                        ${active
+                            ? `<td>${durationStr}</td>`
+                            : `<td>${startedStr}</td><td>${endedStr}</td><td>${durationStr}</td>`
+                        }
+                        <td>${formatBytes(item.bytesIn || 0)} ${t.bytesIn}, ${formatBytes(item.bytesOut || 0)} ${t.bytesOut}</td>
                         <td>${item.reconnects || 0}</td>
                         <td class="${item.lastError ? 'diagnostics-error' : ''}">${escapeHtml(item.lastError || '-')}</td>
                     </tr>
@@ -1045,13 +1294,19 @@
             return `${secs}s`;
         }
 
+        function formatTimestamp(unixSeconds) {
+            const d = new Date(unixSeconds * 1000);
+            const pad = n => String(n).padStart(2, '0');
+            return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+        }
+
         async function addStation() {
             const name = document.getElementById('newStationName').value.trim();
             const displayName = document.getElementById('newStationDisplay').value.trim();
             const url = document.getElementById('newStationUrl').value.trim();
 
             if (!name || !url) {
-                showMessage('Name und Dispatcher URL sind erforderlich / Name and dispatcher URL are required', 'error');
+                showMessage(t.errNameUrl, 'error');
                 return;
             }
 
@@ -1068,22 +1323,22 @@
                 });
                 const data = await resp.json();
                 if (data.status === 'ok') {
-                    showMessage(`Station "${name}" wurde hinzugefügt / was added`, 'success');
+                    showMessage(t.stationAdded(name), 'success');
                     document.getElementById('newStationName').value = '';
                     document.getElementById('newStationDisplay').value = '';
                     document.getElementById('newStationUrl').value = '';
                     loadStations();
                 } else {
-                    showMessage('Station konnte nicht hinzugefügt werden / Could not add station', 'error');
+                    showMessage(t.errAddStation, 'error');
                 }
             } catch (e) {
-                showMessage('Station konnte nicht hinzugefügt werden / Could not add station', 'error');
+                showMessage(t.errAddStation, 'error');
             }
         }
 
         function buildStationList() {
             if (stations.length === 0) {
-                document.getElementById('stationList').innerHTML = '<p style="color:#666;font-size:13px;">Noch keine Stationen vorhanden. / No stations yet.</p>';
+                document.getElementById('stationList').innerHTML = `<p style="color:#666;font-size:13px;">${t.noStations}</p>`;
                 return;
             }
 
@@ -1092,10 +1347,10 @@
                     <thead>
                         <tr>
                             <th>Name</th>
-                            <th>Anzeigename / Display Name</th>
-                            <th>Dispatcher URL</th>
-                            <th>Presets</th>
-                            <th>Aktionen / Actions</th>
+                            <th>${t.colDisplayName}</th>
+                            <th>${t.colDispatcher}</th>
+                            <th>${t.colPreset}s</th>
+                            <th>${t.colActions}</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1112,7 +1367,7 @@
                             <div class="actions">
                                 <button class="btn btn-secondary btn-small" onclick="testStream('${s.name}')">Test</button>
                                 <button class="btn btn-secondary btn-small" onclick="loadDiagnostics('${s.name}')">Info</button>
-                                <button class="btn btn-secondary btn-small" onclick="deleteStation('${s.name}')">Löschen / Delete</button>
+                <button class="btn btn-secondary btn-small" onclick="deleteStation('${s.name}')">${t.deleteStation}</button>
                             </div>
                         </td>
                     </tr>
@@ -1132,7 +1387,7 @@
                 diagnostics = await resp.json();
                 renderDiagnostics();
             } catch (e) {
-                diagnostics = { ok: false, station: name, message: 'Diagnose konnte nicht geladen werden / Diagnostics could not be loaded' };
+                diagnostics = { ok: false, station: name, message: t.diagCouldNotLoad };
                 renderDiagnostics();
             }
         }
@@ -1142,20 +1397,49 @@
             if (!panel || !diagnostics) return;
 
             if (diagnostics.loading) {
-                panel.innerHTML = `<div class="diagnostics">Analysiere ${escapeHtml(diagnostics.station)} ... / Analyzing ${escapeHtml(diagnostics.station)} ...</div>`;
+                panel.innerHTML = `<div class="diagnostics">${t.analyzing(escapeHtml(diagnostics.station))}</div>`;
                 return;
             }
 
             const headers = diagnostics.headers || {};
             const proxyStats = diagnostics.lastProxyStats || {};
-            const bitrate = diagnostics.detectedBitrateKbps ? `${diagnostics.detectedBitrateKbps} kbps (${diagnostics.bitrateSource})` : 'Unbekannt / Unknown';
+            const bitrate = diagnostics.detectedBitrateKbps ? `${diagnostics.detectedBitrateKbps} kbps (${diagnostics.bitrateSource})` : t.unknown;
             const state = proxyStats.state || '-';
             const lastError = proxyStats.lastError || diagnostics.message || '-';
+            const reconnects = proxyStats.reconnects || 0;
+            const reconnectHistory = proxyStats.reconnectHistory || [];
+
+            let reconnectSection = '';
+            if (reconnects > 0 || reconnectHistory.length > 0) {
+                let historyRows = reconnectHistory.length === 0
+                    ? `<div style="color:#aaa;font-size:0.85em;padding:4px 0">${t.noReconnects}</div>`
+                    : reconnectHistory.slice().reverse().map(ev => {
+                        const timeStr = ev.at ? formatTimestamp(ev.at) : '-';
+                        const reason = ev.reason || '-';
+                        const backoff = ev.backoffSeconds != null ? `${ev.backoffSeconds}s` : '-';
+                        return `<div style="display:grid;grid-template-columns:80px 1fr 60px;gap:4px;font-size:0.85em;padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
+                            <span style="color:#aaa">${escapeHtml(timeStr)}</span>
+                            <span style="color:#f0c060;word-break:break-all">${escapeHtml(reason)}</span>
+                            <span style="color:#aaa;text-align:right">+${escapeHtml(backoff)}</span>
+                        </div>`;
+                    }).join('');
+
+                reconnectSection = `
+                    <div style="margin-top:14px">
+                        <div class="diagnostics-key" style="margin-bottom:6px">${t.reconnectHistory} (${reconnects})</div>
+                        <div style="max-height:180px;overflow-y:auto">
+                            <div style="display:grid;grid-template-columns:80px 1fr 60px;gap:4px;font-size:0.75em;color:#888;padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.12);margin-bottom:4px">
+                                <span>${t.reconnectAt}</span><span>${t.reconnectReason}</span><span style="text-align:right">Backoff</span>
+                            </div>
+                            ${historyRows}
+                        </div>
+                    </div>`;
+            }
 
             panel.innerHTML = `
                 <div class="diagnostics">
                     <div class="${diagnostics.ok ? '' : 'diagnostics-error'}">
-                        ${escapeHtml(diagnostics.displayName || diagnostics.station)}: ${diagnostics.ok ? 'Stream erreichbar / Stream reachable' : 'Fehler / Error'}
+                        ${escapeHtml(diagnostics.displayName || diagnostics.station)}: ${diagnostics.ok ? t.streamReachable : t.error}
                     </div>
                     <div class="diagnostics-grid">
                         ${diagnosticItem('Status', diagnostics.status || '-')}
@@ -1165,12 +1449,13 @@
                         ${diagnosticItem('ICY Genre', headers['icy-genre'] || '-')}
                         ${diagnosticItem('ICY Metaint', headers['icy-metaint'] || '-')}
                         ${diagnosticItem('Sample', diagnostics.sampleBytes ? `${diagnostics.sampleBytes} Bytes in ${diagnostics.sampleDurationSeconds}s` : '-')}
-                        ${diagnosticItem('Proxy-Status / Proxy Status', state)}
-                        ${diagnosticItem('Proxy Bytes', `${proxyStats.bytesIn || 0} rein / in, ${proxyStats.bytesOut || 0} raus / out`)}
-                        ${diagnosticItem('Letzter Fehler / Last Error', lastError)}
-                        ${diagnosticItem('Aufgelöste URL / Resolved URL', diagnostics.resolvedUrl || '-')}
+                        ${diagnosticItem(t.proxyStatusLabel, state)}
+                        ${diagnosticItem('Proxy Bytes', `${formatBytes(proxyStats.bytesIn || 0)} ${t.bytesIn}, ${formatBytes(proxyStats.bytesOut || 0)} ${t.bytesOut}`)}
+                        ${diagnosticItem(t.lastError, lastError)}
+                        ${diagnosticItem(t.resolvedUrl, diagnostics.resolvedUrl || '-')}
                         ${diagnosticItem('Dispatcher URL', diagnostics.dispatcherUrl || '-')}
                     </div>
+                    ${reconnectSection}
                 </div>
             `;
         }
@@ -1194,18 +1479,18 @@
         }
 
         async function deleteStation(name) {
-            if (!confirm(`Station "${name}" wirklich löschen? / really delete?`)) return;
+            if (!confirm(t.confirmDelete(name))) return;
             try {
                 const resp = await fetch(`/api/stations/${name}`, { method: 'DELETE' });
                 const data = await resp.json();
                 if (data.status === 'ok') {
-                    showMessage(`Station "${name}" wurde gelöscht / was deleted`, 'success');
+                    showMessage(t.stationDeleted(name), 'success');
                     loadStations();
                 } else {
-                    showMessage('Station konnte nicht gelöscht werden / Could not delete station', 'error');
+                    showMessage(t.errDeleteStation, 'error');
                 }
             } catch (e) {
-                showMessage('Station konnte nicht gelöscht werden / Could not delete station', 'error');
+                showMessage(t.errDeleteStation, 'error');
             }
         }
 
@@ -1215,6 +1500,7 @@
             setTimeout(() => { msg.innerHTML = ''; }, 4000);
         }
 
+        applyI18n();
         loadSettings();
         loadSetupStatus();
         setupStatusTimer = setInterval(loadSetupStatus, 30000);
