@@ -656,7 +656,18 @@
         const lang = (navigator.language || 'en').startsWith('de') ? 'de' : 'en';
         const t = I18N[lang];
         document.getElementById('htmlRoot').lang = lang;
+        console.log('[i18n] lang detected:', lang, '| navigator.language:', navigator.language);
     </script>
+    <script>
+        window.addEventListener('load', () => {
+            console.log('[i18n] document ready, calling applyI18n...');
+            if (typeof applyI18n === 'function') {
+                applyI18n();
+                console.log('[i18n] done, tabPresets text:', document.getElementById('tabPresets').textContent);
+            } else {
+                console.error('[i18n] ERROR: applyI18n is not defined!');
+            }
+        });
 </head>
 <body>
     <div class="container">
@@ -1500,7 +1511,6 @@
             setTimeout(() => { msg.innerHTML = ''; }, 4000);
         }
 
-        applyI18n();
         loadSettings();
         loadSetupStatus();
         setupStatusTimer = setInterval(loadSetupStatus, 30000);
