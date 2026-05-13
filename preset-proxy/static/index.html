@@ -486,6 +486,7 @@
                 colCountry: 'Land',
                 colDuration: 'Dauer',
                 colErrors: 'Fehler',
+                colCause: 'Ursache',
                 colDisplayName: 'Anzeigename',
                 empty: 'Nicht belegt',
                 saveBtnPreset: 'Speichern',
@@ -504,6 +505,14 @@
                 reconnectReason: 'Ursache',
                 reconnectAt: 'Zeit',
                 noReconnects: 'Keine Reconnects aufgezeichnet',
+                streamEvents: 'Stream-Ereignisse',
+                noStreamEvents: 'Keine Stream-Ereignisse aufgezeichnet',
+                eventSide: 'Seite',
+                eventMessage: 'Meldung',
+                eventUpstream: 'Zulieferer',
+                eventClient: 'SoundTouch',
+                eventProxy: 'Proxy',
+                lastEvent: 'Letztes Ereignis',
                 bytesIn: 'rein',
                 bytesOut: 'raus',
                 streamReachable: 'Stream erreichbar',
@@ -586,6 +595,7 @@
                 colCountry: 'Country',
                 colDuration: 'Duration',
                 colErrors: 'Errors',
+                colCause: 'Cause',
                 colDisplayName: 'Display Name',
                 empty: 'Empty',
                 saveBtnPreset: 'Save',
@@ -604,6 +614,14 @@
                 reconnectReason: 'Reason',
                 reconnectAt: 'Time',
                 noReconnects: 'No reconnects recorded',
+                streamEvents: 'Stream Events',
+                noStreamEvents: 'No stream events recorded',
+                eventSide: 'Side',
+                eventMessage: 'Message',
+                eventUpstream: 'Upstream',
+                eventClient: 'SoundTouch',
+                eventProxy: 'Proxy',
+                lastEvent: 'Last Event',
                 bytesIn: 'in',
                 bytesOut: 'out',
                 streamReachable: 'Stream reachable',
@@ -1266,6 +1284,7 @@
                             ${active ? '' : `<th>${t.ended}</th><th>${t.duration}</th>`}
                             <th>Bytes</th>
                             <th>Reconnects</th>
+                            <th>${t.colCause}</th>
                             <th>${t.colErrors}</th>
                         </tr>
                     </thead>
@@ -1285,12 +1304,21 @@
                         }
                         <td>${formatBytes(item.bytesIn || 0)} ${t.bytesIn}, ${formatBytes(item.bytesOut || 0)} ${t.bytesOut}</td>
                         <td>${item.reconnects || 0}</td>
+                        <td>${escapeHtml(formatStatusCause(item))}</td>
                         <td class="${item.lastError ? 'diagnostics-error' : ''}">${escapeHtml(item.lastError || '-')}</td>
                     </tr>
                 `;
             });
             html += '</tbody></table>';
             return html;
+        }
+
+        function formatStatusCause(item) {
+            if (!item) return '-';
+            const side = item.lastEventSide || (item.lastEvent && item.lastEvent.side);
+            const message = item.lastEventMessage || (item.lastEvent && (item.lastEvent.message || item.lastEvent.event));
+            if (!side && !message) return '-';
+            return `${formatEventSide(side)}: ${message || '-'}`;
         }
 
         function formatBytes(bytes) {
@@ -1418,8 +1446,10 @@
             const bitrate = diagnostics.detectedBitrateKbps ? `${diagnostics.detectedBitrateKbps} kbps (${diagnostics.bitrateSource})` : t.unknown;
             const state = proxyStats.state || '-';
             const lastError = proxyStats.lastError || diagnostics.message || '-';
+            const lastEvent = proxyStats.lastEvent || {};
             const reconnects = proxyStats.reconnects || 0;
             const reconnectHistory = proxyStats.reconnectHistory || [];
+            const streamEvents = proxyStats.streamEvents || [];
 
             let reconnectSection = '';
             if (reconnects > 0 || reconnectHistory.length > 0) {
@@ -1428,9 +1458,11 @@
                     : reconnectHistory.slice().reverse().map(ev => {
                         const timeStr = ev.at ? formatTimestamp(ev.at) : '-';
                         const reason = ev.reason || '-';
+                        const side = formatEventSide(ev.side);
                         const backoff = ev.backoffSeconds != null ? `${ev.backoffSeconds}s` : '-';
-                        return `<div style="display:grid;grid-template-columns:80px 1fr 60px;gap:4px;font-size:0.85em;padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
+                        return `<div style="display:grid;grid-template-columns:80px 90px 1fr 60px;gap:4px;font-size:0.85em;padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
                             <span style="color:#aaa">${escapeHtml(timeStr)}</span>
+                            <span style="color:#aaa">${escapeHtml(side)}</span>
                             <span style="color:#f0c060;word-break:break-all">${escapeHtml(reason)}</span>
                             <span style="color:#aaa;text-align:right">+${escapeHtml(backoff)}</span>
                         </div>`;
@@ -1440,13 +1472,36 @@
                     <div style="margin-top:14px">
                         <div class="diagnostics-key" style="margin-bottom:6px">${t.reconnectHistory} (${reconnects})</div>
                         <div style="max-height:180px;overflow-y:auto">
-                            <div style="display:grid;grid-template-columns:80px 1fr 60px;gap:4px;font-size:0.75em;color:#888;padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.12);margin-bottom:4px">
-                                <span>${t.reconnectAt}</span><span>${t.reconnectReason}</span><span style="text-align:right">Backoff</span>
+                            <div style="display:grid;grid-template-columns:80px 90px 1fr 60px;gap:4px;font-size:0.75em;color:#888;padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.12);margin-bottom:4px">
+                                <span>${t.reconnectAt}</span><span>${t.eventSide}</span><span>${t.reconnectReason}</span><span style="text-align:right">Backoff</span>
                             </div>
                             ${historyRows}
                         </div>
                     </div>`;
             }
+
+            const eventRows = streamEvents.length === 0
+                ? `<div style="color:#aaa;font-size:0.85em;padding:4px 0">${t.noStreamEvents}</div>`
+                : streamEvents.slice().reverse().map(ev => {
+                    const timeStr = ev.at ? formatTimestamp(ev.at) : '-';
+                    const side = formatEventSide(ev.side);
+                    const message = ev.message || ev.event || '-';
+                    return `<div style="display:grid;grid-template-columns:80px 90px 1fr;gap:4px;font-size:0.85em;padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
+                        <span style="color:#aaa">${escapeHtml(timeStr)}</span>
+                        <span style="color:#aaa">${escapeHtml(side)}</span>
+                        <span style="word-break:break-all">${escapeHtml(message)}</span>
+                    </div>`;
+                }).join('');
+            const eventSection = `
+                <div style="margin-top:14px">
+                    <div class="diagnostics-key" style="margin-bottom:6px">${t.streamEvents}</div>
+                    <div style="max-height:180px;overflow-y:auto">
+                        <div style="display:grid;grid-template-columns:80px 90px 1fr;gap:4px;font-size:0.75em;color:#888;padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.12);margin-bottom:4px">
+                            <span>${t.reconnectAt}</span><span>${t.eventSide}</span><span>${t.eventMessage}</span>
+                        </div>
+                        ${eventRows}
+                    </div>
+                </div>`;
 
             panel.innerHTML = `
                 <div class="diagnostics">
@@ -1463,13 +1518,29 @@
                         ${diagnosticItem('Sample', diagnostics.sampleBytes ? `${diagnostics.sampleBytes} Bytes in ${diagnostics.sampleDurationSeconds}s` : '-')}
                         ${diagnosticItem(t.proxyStatusLabel, state)}
                         ${diagnosticItem('Proxy Bytes', `${formatBytes(proxyStats.bytesIn || 0)} ${t.bytesIn}, ${formatBytes(proxyStats.bytesOut || 0)} ${t.bytesOut}`)}
+                        ${diagnosticItem(t.lastEvent, formatLastEvent(lastEvent))}
                         ${diagnosticItem(t.lastError, lastError)}
                         ${diagnosticItem(t.resolvedUrl, diagnostics.resolvedUrl || '-')}
                         ${diagnosticItem('Dispatcher URL', diagnostics.dispatcherUrl || '-')}
                     </div>
                     ${reconnectSection}
+                    ${eventSection}
                 </div>
             `;
+        }
+
+        function formatEventSide(side) {
+            if (side === 'upstream') return t.eventUpstream;
+            if (side === 'client') return t.eventClient;
+            if (side === 'proxy') return t.eventProxy;
+            return side || '-';
+        }
+
+        function formatLastEvent(event) {
+            if (!event || !event.event) return '-';
+            const side = formatEventSide(event.side);
+            const message = event.message || event.event;
+            return `${side}: ${message}`;
         }
 
         function diagnosticItem(label, value) {

@@ -89,6 +89,33 @@ def update_stream_stats(station_name, **updates):
         stats.update(updates)
         stats["updatedAt"] = now
 
+def append_stream_event(station_name, side, event, message="", stream_id=None, **details):
+    record = {
+        "at": int(time.time()),
+        "side": side,
+        "event": event
+    }
+    if message:
+        record["message"] = str(message)
+    if stream_id:
+        record["streamId"] = stream_id
+    for key, value in details.items():
+        if value is not None:
+            record[key] = value
+
+    with stream_stats_lock:
+        stats = stream_stats.setdefault(station_name, {})
+        history = list(stats.get("streamEvents", []))
+        history.append(record)
+        if len(history) > 30:
+            history = history[-30:]
+        stats["streamEvents"] = history
+        stats["lastEvent"] = record
+        stats["lastEventSide"] = side
+        stats["lastEventType"] = event
+        stats["lastEventMessage"] = record.get("message", "")
+        stats["updatedAt"] = record["at"]
+
 def get_stream_stats(station_name):
     with stream_stats_lock:
         return copy.deepcopy(stream_stats.get(station_name, {}))
@@ -131,14 +158,12 @@ def proxy_status():
         station_names = sorted(config.get("stations", {}).keys())
     for name in station_names:
         item = stats.get(name, {})
-        if item:
+        if item and item.get("endedAt"):
             item["station"] = name
             if item.get("updatedAt"):
                 item["ageSeconds"] = max(0, now - item["updatedAt"])
-            if item.get("startedAt") and item.get("endedAt"):
+            if item.get("startedAt"):
                 item["durationSeconds"] = max(0, item["endedAt"] - item["startedAt"])
-            elif item.get("startedAt"):
-                item["durationSeconds"] = max(0, now - item["startedAt"])
             station_stats.append(item)
 
     return {
@@ -586,7 +611,12 @@ class StreamHandler(BaseHTTPRequestHandler):
             reconnects=0,
             lastError="",
             endedAt=None,
-            reconnectHistory=[]
+            reconnectHistory=[],
+            streamEvents=[],
+            lastEvent={},
+            lastEventSide="",
+            lastEventType="",
+            lastEventMessage=""
         )
         register_active_stream(stream_id, station_name, self.client_address[0])
 
@@ -594,6 +624,7 @@ class StreamHandler(BaseHTTPRequestHandler):
             nonlocal bytes_in
             backoff_idx = 0
             while not producer_done.is_set():
+                retry_reason = ""
                 try:
                     resolved_url, content_type = resolve_dispatcher(station["dispatcherUrl"])
                     req = urllib.request.Request(resolved_url, headers={
@@ -630,7 +661,18 @@ class StreamHandler(BaseHTTPRequestHandler):
                             try:
                                 chunk = resp.read(4096)
                                 if not chunk:
+                                    retry_reason = "upstream returned EOF"
                                     log("stream.upstream.eof", stream_id=stream_id, station=station_name)
+                                    update_stream_stats(station_name, state="upstream-eof", lastError=retry_reason)
+                                    update_active_stream(
+                                        stream_id,
+                                        state="upstream-eof",
+                                        lastError=retry_reason,
+                                        lastEventSide="upstream",
+                                        lastEventType="upstream-eof",
+                                        lastEventMessage=retry_reason
+                                    )
+                                    append_stream_event(station_name, "upstream", "upstream-eof", retry_reason, stream_id)
                                     break
                                 with buffer_lock:
                                     ring_buffer.append(chunk)
@@ -642,14 +684,32 @@ class StreamHandler(BaseHTTPRequestHandler):
                                 if LOG_STREAM_CHUNKS and bytes_in % (256 * 1024) < len(chunk):
                                     log("stream.producer.bytes", stream_id=stream_id, bytes_in=bytes_in, buffered_chunks=buffered)
                             except (urllib.error.HTTPError, urllib.error.URLError, OSError) as e:
-                                log("stream.upstream.read_error", stream_id=stream_id, station=station_name, message=str(e))
-                                update_stream_stats(station_name, state="upstream-read-error", lastError=str(e))
-                                update_active_stream(stream_id, state="upstream-read-error", lastError=str(e))
+                                retry_reason = str(e)
+                                log("stream.upstream.read_error", stream_id=stream_id, station=station_name, message=retry_reason)
+                                update_stream_stats(station_name, state="upstream-read-error", lastError=retry_reason)
+                                update_active_stream(
+                                    stream_id,
+                                    state="upstream-read-error",
+                                    lastError=retry_reason,
+                                    lastEventSide="upstream",
+                                    lastEventType="upstream-read-error",
+                                    lastEventMessage=retry_reason
+                                )
+                                append_stream_event(station_name, "upstream", "upstream-read-error", retry_reason, stream_id)
                                 break
                 except Exception as e:
-                    log("stream.upstream.error", stream_id=stream_id, station=station_name, message=str(e))
-                    update_stream_stats(station_name, state="upstream-error", lastError=str(e))
-                    update_active_stream(stream_id, state="upstream-error", lastError=str(e))
+                    retry_reason = str(e)
+                    log("stream.upstream.error", stream_id=stream_id, station=station_name, message=retry_reason)
+                    update_stream_stats(station_name, state="upstream-error", lastError=retry_reason)
+                    update_active_stream(
+                        stream_id,
+                        state="upstream-error",
+                        lastError=retry_reason,
+                        lastEventSide="upstream",
+                        lastEventType="upstream-error",
+                        lastEventMessage=retry_reason
+                    )
+                    append_stream_event(station_name, "upstream", "upstream-error", retry_reason, stream_id)
 
                 if producer_done.is_set():
                     break
@@ -664,7 +724,8 @@ class StreamHandler(BaseHTTPRequestHandler):
                         reconnects = 0
                     reconnect_event = {
                         "at": int(time.time()),
-                        "reason": stream_stats.get(station_name, {}).get("lastError", ""),
+                        "side": "upstream",
+                        "reason": retry_reason or stream_stats.get(station_name, {}).get("lastError", "") or "upstream reconnect",
                         "backoffSeconds": backoff
                     }
                     stats = stream_stats.setdefault(station_name, {})
@@ -673,7 +734,15 @@ class StreamHandler(BaseHTTPRequestHandler):
                     if len(history) > 20:
                         history = history[-20:]
                     stats["reconnectHistory"] = history
-                update_active_stream(stream_id, state="reconnecting", reconnects=reconnects, backoffSeconds=backoff)
+                update_active_stream(
+                    stream_id,
+                    state="reconnecting",
+                    reconnects=reconnects,
+                    backoffSeconds=backoff,
+                    lastEventSide="upstream",
+                    lastEventType="upstream-retry",
+                    lastEventMessage=reconnect_event["reason"]
+                )
                 update_stream_stats(station_name, state="reconnecting", reconnects=reconnects, backoffSeconds=backoff)
 
                 start_time = time.time()
@@ -690,9 +759,18 @@ class StreamHandler(BaseHTTPRequestHandler):
         if not producer_ready.wait(timeout=10):
             producer_done.set()
             producer_thread.join(timeout=1)
-            log("stream.error", stream_id=stream_id, station=station_name, message="upstream did not produce data before timeout")
-            update_stream_stats(station_name, state="error", lastError="upstream did not produce data before timeout")
-            update_active_stream(stream_id, state="error", lastError="upstream did not produce data before timeout")
+            error_message = "upstream did not produce data before timeout"
+            log("stream.error", stream_id=stream_id, station=station_name, message=error_message)
+            update_stream_stats(station_name, state="error", lastError=error_message)
+            update_active_stream(
+                stream_id,
+                state="error",
+                lastError=error_message,
+                lastEventSide="proxy",
+                lastEventType="upstream-timeout",
+                lastEventMessage=error_message
+            )
+            append_stream_event(station_name, "proxy", "upstream-timeout", error_message, stream_id)
             self.send_error(502, "Upstream stream did not produce data")
             unregister_active_stream(stream_id)
             return
@@ -720,17 +798,39 @@ class StreamHandler(BaseHTTPRequestHandler):
                             update_active_stream(stream_id, state="streaming", bytesOut=bytes_out)
                             if LOG_STREAM_CHUNKS and bytes_out % (256 * 1024) < len(chunk):
                                 log("stream.consumer.bytes", stream_id=stream_id, bytes_out=bytes_out, buffered_chunks=len(ring_buffer))
-                        except (BrokenPipeError, ConnectionResetError):
-                            log("stream.client.disconnect", stream_id=stream_id, station=station_name, bytes_out=bytes_out)
-                            update_stream_stats(station_name, state="client-disconnect", bytesIn=bytes_in, bytesOut=bytes_out)
-                            update_active_stream(stream_id, state="client-disconnect", bytesIn=bytes_in, bytesOut=bytes_out)
+                        except (BrokenPipeError, ConnectionResetError) as e:
+                            disconnect_message = f"{type(e).__name__}: downstream client closed the connection"
+                            log("stream.client.disconnect", stream_id=stream_id, station=station_name, bytes_out=bytes_out, message=disconnect_message)
+                            update_stream_stats(station_name, state="client-disconnect", bytesIn=bytes_in, bytesOut=bytes_out, lastClientDisconnect=disconnect_message)
+                            update_active_stream(
+                                stream_id,
+                                state="client-disconnect",
+                                bytesIn=bytes_in,
+                                bytesOut=bytes_out,
+                                lastClientDisconnect=disconnect_message,
+                                lastEventSide="client",
+                                lastEventType="client-disconnect",
+                                lastEventMessage=disconnect_message
+                            )
+                            append_stream_event(station_name, "client", "client-disconnect", disconnect_message, stream_id, bytesOut=bytes_out)
                             break
                     elif producer_done.is_set():
                         break
-        except (BrokenPipeError, ConnectionResetError):
-            log("stream.client.disconnect", stream_id=stream_id, station=station_name, bytes_out=bytes_out)
-            update_stream_stats(station_name, state="client-disconnect", bytesIn=bytes_in, bytesOut=bytes_out)
-            update_active_stream(stream_id, state="client-disconnect", bytesIn=bytes_in, bytesOut=bytes_out)
+        except (BrokenPipeError, ConnectionResetError) as e:
+            disconnect_message = f"{type(e).__name__}: downstream client closed the connection"
+            log("stream.client.disconnect", stream_id=stream_id, station=station_name, bytes_out=bytes_out, message=disconnect_message)
+            update_stream_stats(station_name, state="client-disconnect", bytesIn=bytes_in, bytesOut=bytes_out, lastClientDisconnect=disconnect_message)
+            update_active_stream(
+                stream_id,
+                state="client-disconnect",
+                bytesIn=bytes_in,
+                bytesOut=bytes_out,
+                lastClientDisconnect=disconnect_message,
+                lastEventSide="client",
+                lastEventType="client-disconnect",
+                lastEventMessage=disconnect_message
+            )
+            append_stream_event(station_name, "client", "client-disconnect", disconnect_message, stream_id, bytesOut=bytes_out)
         finally:
             producer_done.set()
             producer_thread.join(timeout=1)
