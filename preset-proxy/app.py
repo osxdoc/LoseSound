@@ -639,6 +639,93 @@ class StreamHandler(BaseHTTPRequestHandler):
         producer_ready = threading.Event()
         bytes_in = 0
         bytes_out = 0
+        buffered_bytes = 0
+        stream_started_at = time.time()
+        last_bytes_in_at = None
+        last_bytes_out_at = None
+        last_health_at = stream_started_at
+        last_health_bytes_in = 0
+        last_health_bytes_out = 0
+        underrun_count = 0
+        underrun_started_at = None
+        max_underrun_ms = 0
+        overflow_count = 0
+        last_overflow_log_at = 0
+
+        def stream_metrics(state=None, now=None):
+            now = now or time.time()
+            elapsed = max(0.001, now - stream_started_at)
+            with buffer_lock:
+                buffered_chunks = len(ring_buffer)
+                current_buffered_bytes = buffered_bytes
+                current_bytes_in = bytes_in
+                current_bytes_out = bytes_out
+                current_last_bytes_in_at = last_bytes_in_at
+                current_last_bytes_out_at = last_bytes_out_at
+                current_underrun_started_at = underrun_started_at
+                current_max_underrun_ms = max_underrun_ms
+                current_underrun_count = underrun_count
+                current_overflow_count = overflow_count
+
+            current_underrun_ms = 0
+            if current_underrun_started_at is not None:
+                current_underrun_ms = round((now - current_underrun_started_at) * 1000)
+
+            metrics = {
+                "bytesIn": current_bytes_in,
+                "bytesOut": current_bytes_out,
+                "bufferedBytes": current_buffered_bytes,
+                "bufferedChunks": buffered_chunks,
+                "bufferFillPercent": round((current_buffered_bytes / buffer_bytes_target) * 100, 1) if buffer_bytes_target else 0,
+                "bufferTargetBytes": buffer_bytes_target,
+                "underrunCount": current_underrun_count,
+                "currentUnderrunMs": current_underrun_ms,
+                "maxUnderrunMs": max(current_max_underrun_ms, current_underrun_ms),
+                "overflowCount": current_overflow_count,
+                "upstreamReadGapMs": round((now - current_last_bytes_in_at) * 1000) if current_last_bytes_in_at else None,
+                "producerBytesPerSecond": round(current_bytes_in / elapsed),
+                "consumerBytesPerSecond": round(current_bytes_out / elapsed),
+                "lastBytesInAt": int(current_last_bytes_in_at) if current_last_bytes_in_at else None,
+                "lastBytesOutAt": int(current_last_bytes_out_at) if current_last_bytes_out_at else None
+            }
+            if state:
+                metrics["state"] = state
+            return metrics
+
+        def update_stream_metrics(state=None, **updates):
+            metrics = stream_metrics(state)
+            metrics.update(updates)
+            update_stream_stats(station_name, **metrics)
+            update_active_stream(stream_id, **metrics)
+
+        def log_stream_health(now=None):
+            nonlocal last_health_at, last_health_bytes_in, last_health_bytes_out
+            now = now or time.time()
+            if now - last_health_at < 5:
+                return
+            elapsed = max(0.001, now - last_health_at)
+            metrics = stream_metrics(now=now)
+            producer_rate = round((metrics["bytesIn"] - last_health_bytes_in) / elapsed)
+            consumer_rate = round((metrics["bytesOut"] - last_health_bytes_out) / elapsed)
+            log(
+                "stream.health",
+                stream_id=stream_id,
+                station=station_name,
+                bytes_in=metrics["bytesIn"],
+                bytes_out=metrics["bytesOut"],
+                buffered_bytes=metrics["bufferedBytes"],
+                buffered_chunks=metrics["bufferedChunks"],
+                buffer_fill_percent=metrics["bufferFillPercent"],
+                upstream_read_gap_ms=metrics["upstreamReadGapMs"],
+                underrun_count=metrics["underrunCount"],
+                current_underrun_ms=metrics["currentUnderrunMs"],
+                producer_bps=producer_rate,
+                consumer_bps=consumer_rate
+            )
+            last_health_at = now
+            last_health_bytes_in = metrics["bytesIn"]
+            last_health_bytes_out = metrics["bytesOut"]
+            update_stream_metrics()
 
         log(
             "stream.start",
@@ -666,12 +753,41 @@ class StreamHandler(BaseHTTPRequestHandler):
             lastEvent={},
             lastEventSide="",
             lastEventType="",
-            lastEventMessage=""
+            lastEventMessage="",
+            bufferedBytes=0,
+            bufferedChunks=0,
+            bufferFillPercent=0,
+            bufferTargetBytes=buffer_bytes_target,
+            underrunCount=0,
+            currentUnderrunMs=0,
+            maxUnderrunMs=0,
+            overflowCount=0,
+            upstreamReadGapMs=None,
+            producerBytesPerSecond=0,
+            consumerBytesPerSecond=0,
+            lastBytesInAt=None,
+            lastBytesOutAt=None
         )
         register_active_stream(stream_id, station_name, self.client_address[0])
+        update_active_stream(
+            stream_id,
+            bufferedBytes=0,
+            bufferedChunks=0,
+            bufferFillPercent=0,
+            bufferTargetBytes=buffer_bytes_target,
+            underrunCount=0,
+            currentUnderrunMs=0,
+            maxUnderrunMs=0,
+            overflowCount=0,
+            upstreamReadGapMs=None,
+            producerBytesPerSecond=0,
+            consumerBytesPerSecond=0,
+            lastBytesInAt=None,
+            lastBytesOutAt=None
+        )
 
         def producer():
-            nonlocal bytes_in
+            nonlocal bytes_in, buffered_bytes, last_bytes_in_at, overflow_count, last_overflow_log_at
             backoff_idx = 0
             while not producer_done.is_set():
                 retry_reason = ""
@@ -698,14 +814,16 @@ class StreamHandler(BaseHTTPRequestHandler):
                             contentType=resp.headers.get("Content-Type", content_type),
                             resolvedUrl=resolved_url,
                             detectedBitrateKbps=bitrate_from_headers({key.lower(): value for key, value in resp.headers.items()}),
-                            lastError=""
+                            lastError="",
+                            **stream_metrics()
                         )
                         update_active_stream(
                             stream_id,
                             state="upstream-open",
                             upstreamStatus=resp.status,
                             contentType=resp.headers.get("Content-Type", content_type),
-                            resolvedUrl=resolved_url
+                            resolvedUrl=resolved_url,
+                            **stream_metrics()
                         )
                         while not producer_done.is_set():
                             try:
@@ -713,10 +831,11 @@ class StreamHandler(BaseHTTPRequestHandler):
                                 if not chunk:
                                     retry_reason = "upstream returned EOF"
                                     log("stream.upstream.eof", stream_id=stream_id, station=station_name)
-                                    update_stream_stats(station_name, state="upstream-eof", lastError=retry_reason)
+                                    update_stream_stats(station_name, state="upstream-eof", lastError=retry_reason, **stream_metrics())
                                     update_active_stream(
                                         stream_id,
                                         state="upstream-eof",
+                                        **stream_metrics(),
                                         lastError=retry_reason,
                                         lastEventSide="upstream",
                                         lastEventType="upstream-eof",
@@ -724,22 +843,57 @@ class StreamHandler(BaseHTTPRequestHandler):
                                     )
                                     append_stream_event(station_name, "upstream", "upstream-eof", retry_reason, stream_id)
                                     break
+                                dropped_bytes = 0
+                                dropped_chunks = 0
+                                overflow_event = None
+                                now = time.time()
                                 with buffer_lock:
+                                    if len(ring_buffer) == max_chunks and ring_buffer:
+                                        dropped_bytes = len(ring_buffer[0])
+                                        buffered_bytes = max(0, buffered_bytes - dropped_bytes)
+                                        overflow_count += 1
+                                        dropped_chunks = 1
+                                        if now - last_overflow_log_at >= 5:
+                                            last_overflow_log_at = now
+                                            overflow_event = overflow_count
                                     ring_buffer.append(chunk)
                                     bytes_in += len(chunk)
+                                    buffered_bytes += len(chunk)
+                                    last_bytes_in_at = now
                                     buffered = len(ring_buffer)
-                                update_stream_stats(station_name, state="buffering", bytesIn=bytes_in, bufferedChunks=buffered)
-                                update_active_stream(stream_id, state="buffering", bytesIn=bytes_in, bufferedChunks=buffered)
+                                if dropped_chunks:
+                                    overflow_message = "ring buffer full; oldest audio chunk dropped"
+                                    if overflow_event:
+                                        log(
+                                            "stream.buffer.overflow",
+                                            stream_id=stream_id,
+                                            station=station_name,
+                                            dropped_bytes=dropped_bytes,
+                                            overflow_count=overflow_event,
+                                            buffered_chunks=buffered
+                                        )
+                                        append_stream_event(
+                                            station_name,
+                                            "proxy",
+                                            "buffer-overflow",
+                                            overflow_message,
+                                            stream_id,
+                                            droppedBytes=dropped_bytes,
+                                            overflowCount=overflow_event,
+                                            bufferedChunks=buffered
+                                        )
+                                update_stream_metrics()
                                 producer_ready.set()
                                 if LOG_STREAM_CHUNKS and bytes_in % (256 * 1024) < len(chunk):
                                     log("stream.producer.bytes", stream_id=stream_id, bytes_in=bytes_in, buffered_chunks=buffered)
                             except (urllib.error.HTTPError, urllib.error.URLError, OSError) as e:
                                 retry_reason = str(e)
                                 log("stream.upstream.read_error", stream_id=stream_id, station=station_name, message=retry_reason)
-                                update_stream_stats(station_name, state="upstream-read-error", lastError=retry_reason)
+                                update_stream_stats(station_name, state="upstream-read-error", lastError=retry_reason, **stream_metrics())
                                 update_active_stream(
                                     stream_id,
                                     state="upstream-read-error",
+                                    **stream_metrics(),
                                     lastError=retry_reason,
                                     lastEventSide="upstream",
                                     lastEventType="upstream-read-error",
@@ -750,10 +904,11 @@ class StreamHandler(BaseHTTPRequestHandler):
                 except Exception as e:
                     retry_reason = str(e)
                     log("stream.upstream.error", stream_id=stream_id, station=station_name, message=retry_reason)
-                    update_stream_stats(station_name, state="upstream-error", lastError=retry_reason)
+                    update_stream_stats(station_name, state="upstream-error", lastError=retry_reason, **stream_metrics())
                     update_active_stream(
                         stream_id,
                         state="upstream-error",
+                        **stream_metrics(),
                         lastError=retry_reason,
                         lastEventSide="upstream",
                         lastEventType="upstream-error",
@@ -787,13 +942,14 @@ class StreamHandler(BaseHTTPRequestHandler):
                 update_active_stream(
                     stream_id,
                     state="reconnecting",
+                    **stream_metrics(),
                     reconnects=reconnects,
                     backoffSeconds=backoff,
                     lastEventSide="upstream",
                     lastEventType="upstream-retry",
                     lastEventMessage=reconnect_event["reason"]
                 )
-                update_stream_stats(station_name, state="reconnecting", reconnects=reconnects, backoffSeconds=backoff)
+                update_stream_stats(station_name, state="reconnecting", reconnects=reconnects, backoffSeconds=backoff, **stream_metrics())
 
                 start_time = time.time()
                 while time.time() - start_time < backoff:
@@ -811,10 +967,11 @@ class StreamHandler(BaseHTTPRequestHandler):
             producer_thread.join(timeout=1)
             error_message = "upstream did not produce data before timeout"
             log("stream.error", stream_id=stream_id, station=station_name, message=error_message)
-            update_stream_stats(station_name, state="error", lastError=error_message)
+            update_stream_stats(station_name, state="error", lastError=error_message, **stream_metrics())
             update_active_stream(
                 stream_id,
                 state="error",
+                **stream_metrics(),
                 lastError=error_message,
                 lastEventSide="proxy",
                 lastEventType="upstream-timeout",
@@ -831,50 +988,111 @@ class StreamHandler(BaseHTTPRequestHandler):
         self.send_header("Connection", "close")
         self.end_headers()
         log("stream.response.sent", stream_id=stream_id, station=station_name)
-        update_stream_stats(station_name, state="streaming")
-        update_active_stream(stream_id, state="streaming")
+        update_stream_metrics("streaming")
 
         try:
             while True:
                 time.sleep(0.1)
+                now = time.time()
+                chunk = None
+                underrun_start_event = False
+                underrun_end_ms = None
+                buffered_after_pop = 0
                 with buffer_lock:
                     if ring_buffer:
                         chunk = ring_buffer.popleft()
-                        try:
-                            self.wfile.write(chunk)
-                            self.wfile.flush()
-                            bytes_out += len(chunk)
-                            update_stream_stats(station_name, state="streaming", bytesOut=bytes_out)
-                            update_active_stream(stream_id, state="streaming", bytesOut=bytes_out)
-                            if LOG_STREAM_CHUNKS and bytes_out % (256 * 1024) < len(chunk):
-                                log("stream.consumer.bytes", stream_id=stream_id, bytes_out=bytes_out, buffered_chunks=len(ring_buffer))
-                        except (BrokenPipeError, ConnectionResetError) as e:
-                            disconnect_message = f"{type(e).__name__}: downstream client closed the connection"
-                            log("stream.client.disconnect", stream_id=stream_id, station=station_name, bytes_out=bytes_out, message=disconnect_message)
-                            update_stream_stats(station_name, state="client-disconnect", bytesIn=bytes_in, bytesOut=bytes_out, lastClientDisconnect=disconnect_message)
-                            update_active_stream(
-                                stream_id,
-                                state="client-disconnect",
-                                bytesIn=bytes_in,
-                                bytesOut=bytes_out,
-                                lastClientDisconnect=disconnect_message,
-                                lastEventSide="client",
-                                lastEventType="client-disconnect",
-                                lastEventMessage=disconnect_message
-                            )
-                            append_stream_event(station_name, "client", "client-disconnect", disconnect_message, stream_id, bytesOut=bytes_out)
-                            break
+                        buffered_bytes = max(0, buffered_bytes - len(chunk))
+                        buffered_after_pop = len(ring_buffer)
+                        if underrun_started_at is not None:
+                            underrun_end_ms = round((now - underrun_started_at) * 1000)
+                            max_underrun_ms = max(max_underrun_ms, underrun_end_ms)
+                            underrun_started_at = None
                     elif producer_done.is_set():
                         break
+                    else:
+                        if underrun_started_at is None:
+                            underrun_started_at = now
+                            underrun_count += 1
+                            underrun_start_event = True
+                        buffered_after_pop = 0
+
+                if chunk:
+                    if underrun_end_ms is not None:
+                        log(
+                            "stream.buffer.underrun.end",
+                            stream_id=stream_id,
+                            station=station_name,
+                            duration_ms=underrun_end_ms,
+                            buffered_chunks=buffered_after_pop
+                        )
+                        append_stream_event(
+                            station_name,
+                            "proxy",
+                            "buffer-underrun-end",
+                            f"buffer refilled after {underrun_end_ms}ms",
+                            stream_id,
+                            durationMs=underrun_end_ms,
+                            bufferedChunks=buffered_after_pop
+                        )
+                    try:
+                        self.wfile.write(chunk)
+                        self.wfile.flush()
+                        with buffer_lock:
+                            bytes_out += len(chunk)
+                            last_bytes_out_at = time.time()
+                            current_bytes_out = bytes_out
+                            current_buffered = len(ring_buffer)
+                        update_stream_metrics("streaming")
+                        if LOG_STREAM_CHUNKS and current_bytes_out % (256 * 1024) < len(chunk):
+                            log("stream.consumer.bytes", stream_id=stream_id, bytes_out=current_bytes_out, buffered_chunks=current_buffered)
+                    except (BrokenPipeError, ConnectionResetError) as e:
+                        disconnect_message = f"{type(e).__name__}: downstream client closed the connection"
+                        log("stream.client.disconnect", stream_id=stream_id, station=station_name, bytes_out=bytes_out, message=disconnect_message)
+                        update_stream_stats(station_name, state="client-disconnect", lastClientDisconnect=disconnect_message, **stream_metrics())
+                        update_active_stream(
+                            stream_id,
+                            state="client-disconnect",
+                            **stream_metrics(),
+                            lastClientDisconnect=disconnect_message,
+                            lastEventSide="client",
+                            lastEventType="client-disconnect",
+                            lastEventMessage=disconnect_message
+                        )
+                        append_stream_event(station_name, "client", "client-disconnect", disconnect_message, stream_id, bytesOut=bytes_out)
+                        break
+                elif underrun_start_event:
+                    underrun_message = "proxy buffer is empty while upstream producer is still active"
+                    log(
+                        "stream.buffer.underrun.start",
+                        stream_id=stream_id,
+                        station=station_name,
+                        underrun_count=underrun_count,
+                        upstream_read_gap_ms=stream_metrics().get("upstreamReadGapMs")
+                    )
+                    update_stream_metrics(
+                        "buffer-underrun",
+                        lastEventSide="proxy",
+                        lastEventType="buffer-underrun-start",
+                        lastEventMessage=underrun_message
+                    )
+                    append_stream_event(
+                        station_name,
+                        "proxy",
+                        "buffer-underrun-start",
+                        underrun_message,
+                        stream_id,
+                        underrunCount=underrun_count,
+                        upstreamReadGapMs=stream_metrics().get("upstreamReadGapMs")
+                    )
+                log_stream_health(now)
         except (BrokenPipeError, ConnectionResetError) as e:
             disconnect_message = f"{type(e).__name__}: downstream client closed the connection"
             log("stream.client.disconnect", stream_id=stream_id, station=station_name, bytes_out=bytes_out, message=disconnect_message)
-            update_stream_stats(station_name, state="client-disconnect", bytesIn=bytes_in, bytesOut=bytes_out, lastClientDisconnect=disconnect_message)
+            update_stream_stats(station_name, state="client-disconnect", lastClientDisconnect=disconnect_message, **stream_metrics())
             update_active_stream(
                 stream_id,
                 state="client-disconnect",
-                bytesIn=bytes_in,
-                bytesOut=bytes_out,
+                **stream_metrics(),
                 lastClientDisconnect=disconnect_message,
                 lastEventSide="client",
                 lastEventType="client-disconnect",
@@ -885,7 +1103,7 @@ class StreamHandler(BaseHTTPRequestHandler):
             producer_done.set()
             producer_thread.join(timeout=1)
             log("stream.end", stream_id=stream_id, station=station_name, bytes_in=bytes_in, bytes_out=bytes_out)
-            update_stream_stats(station_name, state="ended", bytesIn=bytes_in, bytesOut=bytes_out, endedAt=int(time.time()))
+            update_stream_stats(station_name, state="ended", endedAt=int(time.time()), **stream_metrics())
             unregister_active_stream(stream_id)
 
     def do_GET(self):

@@ -543,6 +543,13 @@
                 lastEvent: 'Letztes Ereignis',
                 bytesIn: 'rein',
                 bytesOut: 'raus',
+                buffer: 'Puffer',
+                timing: 'Timing',
+                fill: 'Füllung',
+                underruns: 'Underruns',
+                maxEmpty: 'Max leer',
+                upstreamGap: 'Upstream-Lücke',
+                rates: 'Raten',
                 streamReachable: 'Stream erreichbar',
                 error: 'Fehler',
                 unknown: 'Unbekannt',
@@ -659,6 +666,13 @@
                 lastEvent: 'Last Event',
                 bytesIn: 'in',
                 bytesOut: 'out',
+                buffer: 'Buffer',
+                timing: 'Timing',
+                fill: 'Fill',
+                underruns: 'Underruns',
+                maxEmpty: 'Max empty',
+                upstreamGap: 'Upstream gap',
+                rates: 'Rates',
                 streamReachable: 'Stream reachable',
                 error: 'Error',
                 unknown: 'Unknown',
@@ -1383,6 +1397,8 @@
                             <th>${active ? t.colDuration : t.started}</th>
                             ${active ? '' : `<th>${t.ended}</th><th>${t.duration}</th>`}
                             <th>Bytes</th>
+                            <th>${t.buffer}</th>
+                            <th>${t.timing}</th>
                             <th>Reconnects</th>
                             <th>${t.colCause}</th>
                             <th>${t.colErrors}</th>
@@ -1397,12 +1413,14 @@
                 html += `
                     <tr>
                         <td>${escapeHtml(item.station || '-')}</td>
-                        <td>${escapeHtml(item.state || '-')}</td>
+                        <td class="${item.state === 'buffer-underrun' ? 'diagnostics-error' : ''}">${escapeHtml(item.state || '-')}</td>
                         ${active
                             ? `<td>${durationStr}</td>`
                             : `<td>${startedStr}</td><td>${endedStr}</td><td>${durationStr}</td>`
                         }
                         <td>${formatBytes(item.bytesIn || 0)} ${t.bytesIn}, ${formatBytes(item.bytesOut || 0)} ${t.bytesOut}</td>
+                        <td>${formatBufferStatus(item)}</td>
+                        <td>${formatTimingStatus(item)}</td>
                         <td>${item.reconnects || 0}</td>
                         <td>${escapeHtml(formatStatusCause(item))}</td>
                         <td class="${item.lastError ? 'diagnostics-error' : ''}">${escapeHtml(item.lastError || '-')}</td>
@@ -1411,6 +1429,37 @@
             });
             html += '</tbody></table>';
             return html;
+        }
+
+        function formatBufferStatus(item) {
+            const fill = item.bufferFillPercent != null ? `${Number(item.bufferFillPercent).toFixed(1)}%` : '-';
+            const chunks = item.bufferedChunks != null ? item.bufferedChunks : '-';
+            const bytes = formatBytes(item.bufferedBytes || 0);
+            const underruns = item.underrunCount || 0;
+            const overflow = item.overflowCount || 0;
+            const cls = item.state === 'buffer-underrun' || underruns > 0 ? 'diagnostics-error' : '';
+            return `
+                <div class="${cls}">
+                    ${t.fill}: ${escapeHtml(fill)}<br>
+                    ${escapeHtml(bytes)}, ${escapeHtml(String(chunks))} Chunks<br>
+                    ${t.underruns}: ${escapeHtml(String(underruns))}, Drops: ${escapeHtml(String(overflow))}
+                </div>
+            `;
+        }
+
+        function formatTimingStatus(item) {
+            const upstreamGap = item.upstreamReadGapMs != null ? `${item.upstreamReadGapMs}ms` : '-';
+            const currentEmpty = item.currentUnderrunMs ? `${item.currentUnderrunMs}ms` : '-';
+            const maxEmpty = item.maxUnderrunMs ? `${item.maxUnderrunMs}ms` : '-';
+            const producerRate = item.producerBytesPerSecond != null ? `${formatBytes(item.producerBytesPerSecond)}/s` : '-';
+            const consumerRate = item.consumerBytesPerSecond != null ? `${formatBytes(item.consumerBytesPerSecond)}/s` : '-';
+            return `
+                <div>
+                    ${t.upstreamGap}: ${escapeHtml(upstreamGap)}<br>
+                    ${t.maxEmpty}: ${escapeHtml(maxEmpty)} (${escapeHtml(currentEmpty)})<br>
+                    ${t.rates}: ${escapeHtml(producerRate)} ${t.bytesIn}, ${escapeHtml(consumerRate)} ${t.bytesOut}
+                </div>
+            `;
         }
 
         function formatStatusCause(item) {
@@ -1554,6 +1603,10 @@
             const reconnectHistory = proxyStats.reconnectHistory || [];
             const streamEvents = proxyStats.streamEvents || [];
             const playbackMode = diagnostics.playbackMode === 'direct' ? t.playbackDirect : t.playbackProxy;
+            const bufferStatus = `${proxyStats.bufferFillPercent != null ? Number(proxyStats.bufferFillPercent).toFixed(1) + '%' : '-'} / ${formatBytes(proxyStats.bufferedBytes || 0)} / ${proxyStats.bufferedChunks || 0} Chunks`;
+            const underrunStatus = `${proxyStats.underrunCount || 0} (${t.maxEmpty}: ${proxyStats.maxUnderrunMs || 0}ms)`;
+            const upstreamGap = proxyStats.upstreamReadGapMs != null ? `${proxyStats.upstreamReadGapMs}ms` : '-';
+            const rates = `${formatBytes(proxyStats.producerBytesPerSecond || 0)}/s ${t.bytesIn}, ${formatBytes(proxyStats.consumerBytesPerSecond || 0)}/s ${t.bytesOut}`;
 
             let reconnectSection = '';
             if (reconnects > 0 || reconnectHistory.length > 0) {
@@ -1624,6 +1677,10 @@
                         ${diagnosticItem(t.effectiveStreamUrl, diagnostics.effectiveStreamUrl || '-')}
                         ${diagnosticItem(t.proxyStatusLabel, state)}
                         ${diagnosticItem('Proxy Bytes', `${formatBytes(proxyStats.bytesIn || 0)} ${t.bytesIn}, ${formatBytes(proxyStats.bytesOut || 0)} ${t.bytesOut}`)}
+                        ${diagnosticItem(t.buffer, bufferStatus)}
+                        ${diagnosticItem(t.underruns, underrunStatus)}
+                        ${diagnosticItem(t.upstreamGap, upstreamGap)}
+                        ${diagnosticItem(t.rates, rates)}
                         ${diagnosticItem(t.lastEvent, formatLastEvent(lastEvent))}
                         ${diagnosticItem(t.lastError, lastError)}
                         ${diagnosticItem(t.resolvedUrl, diagnostics.resolvedUrl || '-')}
