@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 620" width="980" height="620" role="img" aria-labelledby="title desc">
+  <title id="title">LoseSound architecture</title>
+  <desc id="desc">Browser talks to LoseSound. LoseSound writes presets to the SoundTouch speaker and serves station descriptions. The speaker talks to AfterTouch for the BMX registry and Orion, and to radio-browser.info for the catalogue API. Audio either flows through LoseSound (relay) or directly from the station to the speaker.</desc>
+  <defs>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0088b8"/>
+      <stop offset="1" stop-color="#56d6ff"/>
+    </linearGradient>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#8fa6b8"/>
+    </marker>
+    <marker id="arrow-accent" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#56d6ff"/>
+    </marker>
+    <style>
+      .box { fill: #12121c; stroke: #2a2a3a; stroke-width: 1.5; rx: 12; }
+      .box-accent { fill: #10222c; stroke: #00a8e0; stroke-width: 2; rx: 12; }
+      .label { fill: #e6e6ee; font: 600 17px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+      .sub { fill: #9a9aae; font: 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+      .mono { fill: #9fe8ff; font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .edge { stroke: #8fa6b8; stroke-width: 1.6; fill: none; marker-end: url(#arrow); }
+      .edge-accent { stroke: #56d6ff; stroke-width: 2.2; fill: none; marker-end: url(#arrow-accent); }
+      .edge-note { fill: #8fa6b8; font: 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+      .edge-note-accent { fill: #56d6ff; font: 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    </style>
+  </defs>
+
+  <rect width="980" height="620" fill="#0a0a14"/>
+
+  <!-- browser -->
+  <rect class="box" x="40" y="60" width="230" height="110"/>
+  <text class="label" x="60" y="95">Web browser</text>
+  <text class="sub" x="60" y="118">Preset editor</text>
+  <text class="sub" x="60" y="136">Station catalogue</text>
+  <text class="sub" x="60" y="154">Diagnostics</text>
+
+  <!-- lose sound -->
+  <rect class="box-accent" x="360" y="50" width="270" height="130"/>
+  <text class="label" x="382" y="86">LoseSound</text>
+  <text class="sub" x="382" y="110">HTTP API + web UI</text>
+  <text class="sub" x="382" y="128">Station JSON</text>
+  <text class="sub" x="382" y="146">Optional audio relay</text>
+  <text class="mono" x="382" y="166">:8092</text>
+
+  <!-- speaker -->
+  <rect class="box" x="360" y="290" width="270" height="150"/>
+  <text class="label" x="382" y="326">SoundTouch speaker</text>
+  <text class="sub" x="382" y="350">/storePreset /select</text>
+  <text class="sub" x="382" y="368">/presets /now_playing</text>
+  <text class="mono" x="382" y="392">:8090</text>
+  <text class="sub" x="382" y="416">plays audio itself or via relay</text>
+
+  <!-- aftertouch -->
+  <rect class="box" x="720" y="290" width="220" height="150"/>
+  <text class="label" x="742" y="326">AfterTouch</text>
+  <text class="sub" x="742" y="350">Bose cloud replacement</text>
+  <text class="sub" x="742" y="368">BMX registry</text>
+  <text class="sub" x="742" y="386">Orion station JSON</text>
+  <text class="mono" x="742" y="410">:8091 / :8444</text>
+
+  <!-- radio browser -->
+  <rect class="box" x="720" y="60" width="220" height="110"/>
+  <text class="label" x="742" y="95">radio-browser.info</text>
+  <text class="sub" x="742" y="118">Native SoundTouch API</text>
+  <text class="sub" x="742" y="136">Catalogue search</text>
+  <text class="mono" x="742" y="158">HTTPS</text>
+
+  <!-- station -->
+  <rect class="box" x="40" y="470" width="230" height="100"/>
+  <text class="label" x="60" y="505">Radio station</text>
+  <text class="sub" x="60" y="528">Icecast / dispatcher</text>
+  <text class="sub" x="60" y="546">MP3 / AAC stream</text>
+
+  <!-- edges -->
+  <path class="edge-accent" d="M 270 100 C 315 100, 320 105, 360 108"/>
+  <text class="edge-note-accent" x="276" y="88">1 HTTP / JSON</text>
+
+  <path class="edge-accent" d="M 495 180 L 495 290"/>
+  <text class="edge-note-accent" x="503" y="240">2 preset write + status</text>
+
+  <path class="edge" d="M 630 335 C 675 330, 685 340, 720 350"/>
+  <text class="edge-note" x="628" y="320">3 marge / registry</text>
+
+  <path class="edge" d="M 832 290 L 832 170"/>
+  <text class="edge-note" x="840" y="235">4 station JSON</text>
+
+  <path class="edge" d="M 510 440 L 240 470"/>
+  <text class="edge-note" x="260" y="452">5a relay audio</text>
+
+  <path class="edge" d="M 120 470 C 120 400, 240 330, 360 320"/>
+  <text class="edge-note" x="122" y="405">5b direct audio (speaker fetches)</text>
+
+  <path class="edge" d="M 630 420 C 670 430, 690 420, 720 406"/>
+  <text class="edge-note" x="636" y="442">6a Orion / registry</text>
+
+  <path class="edge" d="M 832 400 C 832 300, 832 260, 832 170"/>
+  <text class="edge-note" x="840" y="300">6b radio browser</text>
+
+  <!-- legend -->
+  <text class="sub" x="40" y="600">Solid blue: control / metadata. Grey: playback dependencies. The relay is opt-in per preset.</text>
+</svg>

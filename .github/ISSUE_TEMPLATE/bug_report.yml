@@ -1,0 +1,82 @@
+name: Bug report
+description: Something does not work as expected
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Please run `python3 scripts/verify.py --json` first - it often pinpoints the problem.
+        Remove stream tokens and personal data from logs before posting.
+
+  - type: input
+    id: losesound-version
+    attributes:
+      label: LoseSound version
+      description: From `/api/health` or the footer
+      placeholder: "1.0.0"
+    validations:
+      required: true
+
+  - type: input
+    id: aftertouch-version
+    attributes:
+      label: AfterTouch version
+      description: From `http://HOST:8091/setup/version`
+      placeholder: "0.138.1"
+    validations:
+      required: true
+
+  - type: input
+    id: speaker
+    attributes:
+      label: Speaker model and firmware
+      description: From `/info`
+      placeholder: "SoundTouch 20, 27.0.6"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Preset mode
+      options:
+        - relay
+        - speaker (direct)
+        - radioBrowser
+        - orion (AfterTouch)
+        - auto
+        - not preset related
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect, what did the speaker/UI do?
+    validations:
+      required: true
+
+  - type: textarea
+    id: verify
+    attributes:
+      label: verify.py output
+      description: Paste the table or `--json` output
+      render: text
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: "docker compose logs --tail 200 preset-proxy"
+      render: text
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checklist
+      options:
+        - label: I removed stream tokens, IP addresses and serial numbers from the pasted output.
+          required: true
+        - label: I read docs/TROUBLESHOOTING.md.
+          required: true
