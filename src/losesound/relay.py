@@ -25,7 +25,7 @@ DOWNSTREAM_TIMEOUT = 30.0
 HEALTH_INTERVAL = 5.0
 PUBLISH_INTERVAL = 0.5
 # Gaps shorter than this are normal bursty upstream delivery; the speaker buffers them.
-UNDERRUN_ALERT_MS = 500
+UNDERRUN_ALERT_MS = 1000
 
 
 class StreamRegistry:
