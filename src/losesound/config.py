@@ -87,7 +87,7 @@ def default_settings() -> dict:
         default_mode = "relay" if audio_proxy else "speaker"
     return {
         "bufferSeconds": _env_int("BUFFER_SECONDS", 3, 1, 30),
-        "prebufferSeconds": _env_int("PREBUFFER_SECONDS", 1, 0, 10),
+        "prebufferSeconds": _env_int("PREBUFFER_SECONDS", 2, 0, 10),
         "bitrateKbps": _env_int("BITRATE_KBPS", 128, 32, 320),
         "reconnectBackoffMs": parse_backoff_ms(
             os.getenv("RECONNECT_BACKOFF_MS", ",".join(str(v) for v in DEFAULT_BACKOFF_MS))
@@ -157,7 +157,7 @@ def normalize_settings(data) -> dict:
 
     return {
         "bufferSeconds": bounded_int("bufferSeconds", 3, 1, 30),
-        "prebufferSeconds": bounded_int("prebufferSeconds", 1, 0, 10),
+        "prebufferSeconds": bounded_int("prebufferSeconds", 2, 0, 10),
         "bitrateKbps": bounded_int("bitrateKbps", 128, 32, 320),
         "reconnectBackoffMs": parse_backoff_ms(data.get("reconnectBackoffMs", DEFAULT_BACKOFF_MS)),
         "audioProxyEnabled": audio_proxy,

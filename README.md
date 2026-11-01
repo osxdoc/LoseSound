@@ -122,7 +122,7 @@ UI are stored in the container volume and take precedence over the environment d
 | `AFTERTOUCH_HTTPS_PORT` | `8444` | AfterTouch HTTPS port (DNS migration) |
 | `BASE_URL` | derived | URL the speaker uses to reach the station descriptions |
 | `BUFFER_SECONDS` | `3` | Relay ring buffer |
-| `PREBUFFER_SECONDS` | `1` | Audio buffered before the first byte is sent |
+| `PREBUFFER_SECONDS` | `2` | Audio buffered before the first byte is sent |
 | `BITRATE_KBPS` | `128` | Fallback pacing for the relay |
 | `RECONNECT_BACKOFF_MS` | `250,500,1000,2000,3000` | Upstream reconnect backoff |
 | `AUDIO_PROXY_ENABLED` | `1` | Seeds the default mode (`0` → `speaker`) |

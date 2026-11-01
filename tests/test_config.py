@@ -70,7 +70,7 @@ def test_migrates_v1_configuration():
     assert station["presets"] == [1, 2]
     assert station["presetModes"] == {"1": "relay", "2": "speaker"}
     assert station["radioBrowserUuid"] == ""
-    assert normalized["settings"]["prebufferSeconds"] == 1
+    assert normalized["settings"]["prebufferSeconds"] == 2
     assert normalized["settings"]["defaultPresetMode"] == "relay"
 
 

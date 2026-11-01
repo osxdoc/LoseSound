@@ -24,6 +24,8 @@ UPSTREAM_TIMEOUT = 20.0
 DOWNSTREAM_TIMEOUT = 30.0
 HEALTH_INTERVAL = 5.0
 PUBLISH_INTERVAL = 0.5
+# Gaps shorter than this are normal bursty upstream delivery; the speaker buffers them.
+UNDERRUN_ALERT_MS = 500
 
 
 class StreamRegistry:
@@ -492,6 +494,7 @@ class RelaySession:
         tokens = float(min(capacity, MAX_CHUNK))
         last = time.monotonic()
         underrun_started: float | None = None
+        underrun_counted = False
 
         try:
             while True:
@@ -560,9 +563,12 @@ class RelaySession:
                 if empty and not self.done.is_set():
                     if underrun_started is None:
                         underrun_started = now
+                        underrun_counted = False
+                    elif not underrun_counted and int((now - underrun_started) * 1000) >= UNDERRUN_ALERT_MS:
+                        underrun_counted = True
                         self.underrun_count += 1
                         with self.buffer_lock:
-                            self.underrun_started_at = now
+                            self.underrun_started_at = underrun_started
                         message = "proxy buffer is empty while upstream producer is still active"
                         log(
                             "stream.buffer.underrun.start",
