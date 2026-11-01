@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en" id="htmlRoot">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>LoseSound</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="topbar">
+      <div class="brand">
+        <span class="logo" aria-hidden="true"></span>
+        <div>
+          <h1 data-i18n="appName">LoseSound</h1>
+          <p class="subtitle" data-i18n="subtitle"></p>
+        </div>
+      </div>
+      <div class="top-actions">
+        <div class="health" id="health">
+          <span class="dot" id="healthDot"></span>
+          <span id="healthLabel" data-i18n="loading"></span>
+        </div>
+        <button class="icon-btn" id="languageBtn" type="button" aria-label="Language">DE</button>
+        <button class="icon-btn" id="settingsBtn" type="button" data-i18n-title="settings">&#9881;</button>
+      </div>
+    </header>
+
+    <div id="setupBanner" class="banner" hidden></div>
+    <div id="message" class="toast" hidden role="status"></div>
+
+    <nav class="tabs" id="tabs">
+      <button type="button" class="tab active" data-tab="presets" data-i18n="tabPresets"></button>
+      <button type="button" class="tab" data-tab="catalog" data-i18n="tabCatalog"></button>
+      <button type="button" class="tab" data-tab="status" data-i18n="tabStatus"></button>
+    </nav>
+
+    <main id="main">
+      <section class="view active" id="view-presets">
+        <div class="card">
+          <div class="card-head">
+            <h2 data-i18n="presetsTitle"></h2>
+            <p class="hint" data-i18n="presetsHint"></p>
+          </div>
+          <div class="table-wrap" id="presetTable"></div>
+        </div>
+
+        <div class="card">
+          <h2 data-i18n="stationsTitle"></h2>
+          <div class="table-wrap" id="stationList"></div>
+        </div>
+
+        <div class="card">
+          <h2 data-i18n="addStationTitle"></h2>
+          <form id="addStationForm" class="form-row" autocomplete="off">
+            <label class="field grow">
+              <span data-i18n="displayName"></span>
+              <input id="newStationDisplay" data-i18n-placeholder="displayNamePlaceholder">
+            </label>
+            <label class="field grow2">
+              <span data-i18n="streamUrl"></span>
+              <input id="newStationUrl" type="url" required data-i18n-placeholder="streamUrlPlaceholder">
+            </label>
+            <button class="btn primary" type="submit" data-i18n="add"></button>
+          </form>
+          <p class="hint" data-i18n="addStationHelp"></p>
+        </div>
+      </section>
+
+      <section class="view" id="view-catalog">
+        <div class="card">
+          <div class="card-head">
+            <h2 data-i18n="catalogTitle"></h2>
+            <p class="hint" data-i18n="catalogHint"></p>
+          </div>
+          <form id="catalogForm" class="form-row" autocomplete="off">
+            <label class="field grow2">
+              <span data-i18n="query"></span>
+              <input id="catalogQuery" data-i18n-placeholder="queryPlaceholder">
+            </label>
+            <label class="field">
+              <span data-i18n="country"></span>
+              <select id="catalogCountry"></select>
+            </label>
+            <label class="field">
+              <span data-i18n="category"></span>
+              <select id="catalogTag"></select>
+            </label>
+            <label class="field">
+              <span data-i18n="order"></span>
+              <select id="catalogOrder"></select>
+            </label>
+            <button class="btn primary" type="submit" data-i18n="search"></button>
+          </form>
+          <div class="table-wrap" id="catalogResults"></div>
+        </div>
+      </section>
+
+      <section class="view" id="view-status">
+        <div class="card">
+          <h2 data-i18n="speakersTitle"></h2>
+          <div id="speakerStatus"></div>
+        </div>
+        <div class="card">
+          <h2 data-i18n="proxyTitle"></h2>
+          <div id="proxyStatus"></div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <span id="footerText"></span>
+      <span class="footer-links">
+        <a href="https://github.com/osxdoc/LoseSound" target="_blank" rel="noreferrer">GitHub</a>
+        <a href="/api/setup/status?refresh=1" target="_blank" rel="noreferrer">API</a>
+      </span>
+    </footer>
+  </div>
+
+  <div class="backdrop" id="settingsBackdrop" hidden></div>
+  <aside class="panel" id="settingsPanel" hidden>
+    <div class="panel-head">
+      <h2 data-i18n="settingsTitle"></h2>
+      <button class="icon-btn" id="settingsClose" type="button" aria-label="Close">&#10005;</button>
+    </div>
+    <form id="settingsForm" class="stack" autocomplete="off">
+      <label class="field">
+        <span data-i18n="bufferSeconds"></span>
+        <input id="bufferSeconds" type="number" min="1" max="30" step="1">
+      </label>
+      <label class="field">
+        <span data-i18n="prebufferSeconds"></span>
+        <input id="prebufferSeconds" type="number" min="0" max="10" step="1">
+      </label>
+      <label class="field">
+        <span data-i18n="bitrateKbps"></span>
+        <input id="bitrateKbps" type="number" min="32" max="320" step="1">
+      </label>
+      <label class="field">
+        <span data-i18n="backoff"></span>
+        <input id="reconnectBackoffMs" type="text" placeholder="250,500,1000,2000,3000">
+      </label>
+      <label class="field">
+        <span data-i18n="defaultMode"></span>
+        <select id="defaultPresetMode"></select>
+      </label>
+      <p class="hint" data-i18n="defaultModeHelp"></p>
+      <label class="field">
+        <span data-i18n="apiToken"></span>
+        <input id="apiToken" type="password">
+      </label>
+      <p class="hint" data-i18n="apiTokenHelp"></p>
+      <button class="btn primary" type="submit" data-i18n="save"></button>
+    </form>
+  </aside>
+
+  <script src="/static/i18n.js"></script>
+  <script src="/static/app.js"></script>
+</body>
+</html>

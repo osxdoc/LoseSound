@@ -1,8 +1,25 @@
+# local configuration
 .env
+.env.local
+
+# runtime data
 data/
+*.bak
+*.tmp
+*.corrupt-*
+
+# python
 __pycache__/
 *.pyc
 *.pyo
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# logs and pids
 *.log
 *.pid
+
+# editors / OS
 .DS_Store
+node_modules/

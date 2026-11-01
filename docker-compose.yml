@@ -1,6 +1,7 @@
 services:
   aftertouch:
-    image: ghcr.io/gesellix/bose-soundtouch:latest
+    # Pinned release; update deliberately after reading docs/UPGRADING.md.
+    image: ghcr.io/gesellix/bose-soundtouch:${SOUNDTOUCH_VERSION:-0.138.1}
     container_name: aftertouch
     network_mode: host
     environment:
@@ -12,11 +13,20 @@ services:
     volumes:
       - aftertouch_data:/app/data
     restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   preset-proxy:
+    image: ghcr.io/osxdoc/losesound:${LOSESOUND_VERSION:-latest}
     build:
-      context: ./preset-proxy
+      context: .
+      args:
+        APP_VERSION: ${LOSESOUND_VERSION:-dev}
     container_name: preset-proxy
+    init: true
     ports:
       - "${PROXY_PORT:-8092}:8092"
     environment:
@@ -26,14 +36,38 @@ services:
       - AFTERTOUCH_URL=http://${SERVICE_HOST:?Run scripts/setup.py first}:${AFTERTOUCH_HTTP_PORT:-8091}
       - SPEAKER_IP=${SPEAKER_IP:?Run scripts/setup.py first}
       - SPEAKER_IPS=${SPEAKER_IPS:-${SPEAKER_IP:?Run scripts/setup.py first}}
+      - SPEAKER_PORT=${SPEAKER_PORT:-8090}
       - BUFFER_SECONDS=${BUFFER_SECONDS:-3}
+      - PREBUFFER_SECONDS=${PREBUFFER_SECONDS:-1}
       - BITRATE_KBPS=${BITRATE_KBPS:-128}
       - RECONNECT_BACKOFF_MS=${RECONNECT_BACKOFF_MS:-250,500,1000,2000,3000}
+      - AUDIO_PROXY_ENABLED=${AUDIO_PROXY_ENABLED:-1}
+      - DEFAULT_PRESET_MODE=${DEFAULT_PRESET_MODE:-auto}
       - LOG_STREAM_CHUNKS=${LOG_STREAM_CHUNKS:-0}
+      - LOG_URL_QUERY=${LOG_URL_QUERY:-0}
+      - NET_FORCE_IPV4=${NET_FORCE_IPV4:-1}
       - RADIO_BROWSER_BASE_URL=${RADIO_BROWSER_BASE_URL:-https://de1.api.radio-browser.info}
+      - API_TOKEN=${API_TOKEN:-}
+      - CONFIG_PATH=/data/config.json
+      - APP_VERSION=${LOSESOUND_VERSION:-dev}
     volumes:
       - preset_proxy_data:/data
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8092/api/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 
 volumes:
   aftertouch_data:
