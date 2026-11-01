@@ -126,3 +126,40 @@ def test_play_station_success_and_timeout():
         speaker.state["select_mode"] = "ignore"
         failed = presets.play_station(client, "test", STATION, "relay", "http://127.0.0.1:8092", timeout=0.3)
         assert failed["status"] == "error"
+
+
+def test_now_playing_error_is_reported():
+    with FakeSpeaker() as speaker:
+        speaker.state["inactive"] = True
+        client = SpeakerClient("127.0.0.1", speaker.port, timeout=3)
+        now = client.now_playing()
+        assert now["error"]
+        assert now["errorName"] == "EVENT_IN_WRONG_STATE"
+
+
+def test_play_wakes_an_inactive_speaker():
+    with FakeSpeaker() as speaker:
+        speaker.state["inactive"] = True
+        client = SpeakerClient("127.0.0.1", speaker.port, timeout=3)
+        result = presets.play_station(client, "test", STATION, "relay", "http://127.0.0.1:8092", timeout=3)
+        assert result["status"] == "ok"
+        assert ("press", "POWER") in speaker.state["keys"]
+        assert ("release", "POWER") in speaker.state["keys"]
+
+
+def test_now_playing_matching_rejects_stale_location():
+    item = {"source": "LOCAL_INTERNET_RADIO", "location": "http://proxy:8092/test.json"}
+    stale = {
+        "source": "LOCAL_INTERNET_RADIO",
+        "location": "http://proxy:8092/other.json",
+        "stationName": "Other",
+        "playStatus": "PLAY_STATE",
+    }
+    fresh = {
+        "source": "LOCAL_INTERNET_RADIO",
+        "location": "http://proxy:8092/test.json",
+        "stationName": "Test",
+        "playStatus": "PLAY_STATE",
+    }
+    assert not presets._now_playing_matches(stale, item)
+    assert presets._now_playing_matches(fresh, item)

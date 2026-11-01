@@ -152,6 +152,23 @@ class SpeakerClient:
 
     def now_playing(self) -> dict:
         root = self._get_xml("/now_playing", timeout=3.0)
+        if _local(root.tag) == "errors":
+            error = next((node for node in root.iter() if _local(node.tag) == "error"), None)
+            return {
+                "source": "",
+                "sourceAccount": "",
+                "location": "",
+                "type": "",
+                "itemName": "",
+                "track": "",
+                "artist": "",
+                "album": "",
+                "stationName": "",
+                "playStatus": "",
+                "streamType": "",
+                "error": (error.text or "").strip() if error is not None else "speaker error",
+                "errorName": error.attrib.get("name", "") if error is not None else "",
+            }
         attrs = {key.lower(): value for key, value in root.attrib.items()}
         content = None
         for child in root.iter():
@@ -190,8 +207,13 @@ class SpeakerClient:
     def select_preset(self, slot: int) -> str:
         return self._post("/select", f'<preset id="{int(slot)}" />', timeout=5.0)
 
+    def wake(self) -> str:
+        """Send a POWER press/release so the speaker leaves standby."""
+        self._post("/key", '<key state="press" sender="LoseSound">POWER</key>')
+        return self._post("/key", '<key state="release" sender="LoseSound">POWER</key>')
+
     def play_pause(self, action: str = "PLAY") -> str:
-        return self._post("/key", f'<key state="{action}" sender="Gabbo" />')
+        return self._post("/key", f'<key state="press" sender="LoseSound">{action}</key>')
 
     def volume(self, value: int) -> str:
         value = max(0, min(100, int(value)))

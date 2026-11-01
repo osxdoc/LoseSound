@@ -173,28 +173,37 @@ def store_and_verify(client, station_name: str, station: dict, slot: int, mode: 
 
 
 def _now_playing_matches(now_playing: dict, item: dict) -> bool:
-    if now_playing.get("source") and now_playing["source"] != item["source"]:
+    if now_playing.get("error") or now_playing.get("errorName"):
         return False
-    location = now_playing.get("location", "")
-    # A speaker may resolve a relative location; only compare when both are absolute URLs.
-    if (
-        location
-        and "://" in location
-        and item["location"].startswith("http")
-        and not _same_location(location, item["location"])
-    ):
+    if now_playing.get("source") and now_playing["source"] != item["source"]:
         return False
     if now_playing.get("playStatus") == "PAUSE_STATE":
         return False
-    return bool(
-        now_playing.get("stationName") or now_playing.get("track") or now_playing.get("playStatus") == "PLAY_STATE"
-    )
+    location = now_playing.get("location", "")
+    if location:
+        if not _same_location(location, item["location"]):
+            return False
+    elif not (now_playing.get("stationName") or now_playing.get("track")):
+        return False
+    return True
 
 
 def play_station(client, station_name: str, station: dict, mode: str, base_url: str, timeout: float = 8.0) -> dict:
     """Select a station on the speaker and wait until it reports playback."""
     item = build_content_item(station_name, station, mode, base_url)
     started = time.time()
+    try:
+        current = client.now_playing()
+    except Exception:  # noqa: BLE001 - select below reports unreachable speakers
+        current = {}
+    if current.get("error") or current.get("errorName"):
+        log("station.play.wake", station=station_name, reason=current.get("error", ""))
+        try:
+            client.wake()
+            time.sleep(2.5)
+        except Exception:  # noqa: BLE001 - select reports the real error
+            pass
+
     log(
         "station.play.start",
         station=station_name,

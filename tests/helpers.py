@@ -109,6 +109,12 @@ class _SpeakerHandler(_QuietHandler):
                 )
             self._send(200, "<presets>" + "".join(presets) + "</presets>")
         elif path == "/now_playing":
+            if self.state.get("inactive"):
+                self._send(
+                    200,
+                    '<errors deviceID="DEV1"><error value="1043" name="EVENT_IN_WRONG_STATE">NowPlaying not supported in current state: Inactive</error></errors>',
+                )
+                return
             now = self.state.get("now")
             if not now:
                 self._send(200, '<nowPlaying source="" playStatus="STOP_STATE"/>')
@@ -140,7 +146,13 @@ class _SpeakerHandler(_QuietHandler):
             self._send(400, "invalid xml", "text/plain")
             return
 
-        if path == "/storePreset":
+        if path == "/key":
+            key = (root.text or "").strip()
+            self.state.setdefault("keys", []).append((root.attrib.get("state", ""), key))
+            if key == "POWER":
+                self.state["inactive"] = False
+            self._send(200, "<status>/key</status>")
+        elif path == "/storePreset":
             if self.state.get("store_mode") == "reject":
                 self._send(400, "rejected", "text/plain")
                 return
@@ -168,7 +180,7 @@ class _SpeakerHandler(_QuietHandler):
             self._send(200, "<presets/>")
         elif path == "/select":
             content = next((node for node in root.iter() if node.tag.rsplit("}", 1)[-1].lower() == "contentitem"), None)
-            if self.state.get("select_mode") == "ignore" or content is None:
+            if self.state.get("inactive") or self.state.get("select_mode") == "ignore" or content is None:
                 self.state["now"] = None
             else:
                 self.state["now"] = {
@@ -205,6 +217,8 @@ class FakeSpeaker(_ServerContext):
             "seek_mode": "normal",
             "mismatch_location": None,
             "now": None,
+            "inactive": False,
+            "keys": [],
             "requests": [],
         }
 
