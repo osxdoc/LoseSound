@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning follows
 [Semantic Versioning](https://semver.org/).
 
+## [1.0.1] - 2026-11-01
+
+### Fixed
+
+- `scripts/setup.py --migrate` now runs AfterTouch's required data sync first and addresses the
+  speaker by device ID (newer AfterTouch versions reject the IP and a migration without a sync).
+- Documented the sync step in `docs/UPGRADING.md`.
+
 ## [1.0.0] - 2026-11-01
 
 First public release.

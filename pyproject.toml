@@ -1,6 +1,6 @@
 [project]
 name = "losesound"
-version = "1.0.0"
+version = "1.0.1"
 description = "Local preset and stream helper for Bose SoundTouch speakers"
 readme = "README.md"
 requires-python = ">=3.11"

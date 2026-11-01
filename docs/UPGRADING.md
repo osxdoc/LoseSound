@@ -84,11 +84,17 @@ python3 scripts/verify.py
 
 ### 3. Migrate the speaker again
 
-The old marge URL contained `/marge`. Migrate with the canonical base URL:
+Newer AfterTouch versions require a **data sync** before the migration, and they address the
+speaker by device ID rather than by IP:
 
 ```bash
-curl -X POST "http://HOST:8091/setup/migrate/SPEAKER_IP?method=xml&target_url=http://HOST:8091&marge_url=http://HOST:8091"
+# device ID from http://SPEAKER_IP:8090/info
+curl -X POST "http://HOST:8091/setup/sync/DEVICE_ID"
+curl -X POST "http://HOST:8091/setup/migrate/DEVICE_ID?method=xml&target_url=http://HOST:8091&marge_url=http://HOST:8091"
 ```
+
+`scripts/setup.py --migrate` does both automatically. The old marge URL contained `/marge`; the
+canonical value is the plain base URL.
 
 Fallback methods: `method=telnet` (port 17000), `method=resolv` (DNS interception, requires HTTPS
 and CA trust). The speaker's SSH port (22) must be open for `xml`.

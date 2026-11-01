@@ -273,36 +273,73 @@ def compose_up() -> None:
 
 
 # --------------------------------------------------------------- migration
+def http_post(url: str, timeout: float = 60.0) -> tuple[int, str]:
+    request = urllib.request.Request(url, data=b"", method="POST")
+    request.add_header("User-Agent", "LoseSound-setup/1.0")
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            return response.status, response.read().decode("utf-8", errors="replace")
+    except urllib.error.HTTPError as exc:
+        return exc.code, exc.read().decode("utf-8", errors="replace")
+    except Exception as exc:  # noqa: BLE001 - returned to the caller
+        return 0, str(exc)
+
+
 def migrate_speaker(host: str, speaker: dict, env: dict, method: str = "xml") -> bool:
     port = env.get("AFTERTOUCH_HTTP_PORT", DEFAULTS["AFTERTOUCH_HTTP_PORT"])
     target = f"http://{host}:{port}"
-    device = speaker.get("ip") or speaker.get("device_id")
-    if not device:
-        log("Migration übersprungen: Lautsprecher hat keine IP.")
+    identifiers: list[str] = []
+    for candidate in (speaker.get("device_id"), speaker.get("ip")):
+        if candidate and candidate not in identifiers:
+            identifiers.append(str(candidate))
+    if not identifiers:
+        log("Migration übersprungen: Lautsprecher hat weder IP noch deviceID.")
         return False
-    query = urllib.parse.urlencode({"method": method, "target_url": target, "marge_url": target})
-    url = f"{target}/setup/migrate/{urllib.parse.quote(str(device))}?{query}"
-    log(f"Migriere {device} auf {target} (Methode {method}) ...")
-    try:
-        http_get(url, timeout=30, method="POST")
-    except urllib.error.HTTPError as exc:
-        detail = exc.read().decode("utf-8", errors="replace")[:300]
-        log(f"Migration fehlgeschlagen: HTTP {exc.code} {detail or exc.reason}")
-        log(f"Manuell: {url}")
-        return False
-    except Exception as exc:  # noqa: BLE001 - explained to the user
-        log(f"Migration fehlgeschlagen: {exc}")
+
+    log(f"Migriere {identifiers[0]} auf {target} (Methode {method}) ...")
+    for device in identifiers:
+        # Newer AfterTouch versions require a data sync before they migrate.
+        sync_status, sync_body = http_post(f"{target}/setup/sync/{urllib.parse.quote(device)}", timeout=60)
+        if sync_status == 200:
+            log(f"Datensync für {device}: {sync_body[:120]}")
+        elif sync_status:
+            log(f"Datensync für {device} meldet HTTP {sync_status}: {sync_body[:120]}")
+
+        query = urllib.parse.urlencode({"method": method, "target_url": target, "marge_url": target})
+        url = f"{target}/setup/migrate/{urllib.parse.quote(device)}?{query}"
+        status, body = http_post(url, timeout=90)
+        if status == 200:
+            try:
+                payload = json.loads(body)
+            except json.JSONDecodeError:
+                payload = {}
+            if payload.get("ok"):
+                log("Migration wurde von AfterTouch bestätigt.")
+                deadline = time.time() + 15
+                while time.time() < deadline:
+                    info = fetch_speaker(speaker["ip"], timeout=3)
+                    if info and info.get("marge_url", "").rstrip("/") == target.rstrip("/"):
+                        log("Migration bestätigt: margeURL zeigt auf AfterTouch.")
+                        return True
+                    time.sleep(1)
+                log(
+                    "Migration gesendet, aber margeURL noch nicht bestätigt. Prüfe den Speaker-Status im AfterTouch-UI."
+                )
+                return False
+            log(f"Migration abgelehnt: {payload.get('message') or body[:200]}")
+
+        if "device not found" in body.lower():
+            continue
+        if "migration data is not ready" in body.lower():
+            log(
+                "AfterTouch braucht zuerst einen Datensync; bitte im AfterTouch-UI 'Data Sync' ausführen und erneut versuchen."
+            )
+        else:
+            log(f"Migration fehlgeschlagen: HTTP {status} {body[:250]}")
         log(f"Manuell: {url}")
         return False
 
-    deadline = time.time() + 15
-    while time.time() < deadline:
-        info = fetch_speaker(speaker["ip"], timeout=3)
-        if info and info.get("marge_url", "").rstrip("/") == target.rstrip("/"):
-            log("Migration bestätigt: margeURL zeigt auf AfterTouch.")
-            return True
-        time.sleep(1)
-    log("Migration gesendet, aber margeURL noch nicht bestätigt. Prüfe den Speaker-Status im AfterTouch-UI.")
+    log("AfterTouch konnte den Lautsprecher weder über deviceID noch über IP finden.")
     return False
 
 
