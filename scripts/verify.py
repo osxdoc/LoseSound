@@ -72,6 +72,17 @@ class Checker:
         except (urllib.error.URLError, OSError, ValueError) as exc:
             return 0, b"", str(getattr(exc, "reason", exc))
 
+    def header_probe(self, url: str, timeout: float | None = None) -> tuple[int, dict, str]:
+        """Fetch only the response headers; live audio streams never end."""
+        request = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "*/*"})
+        try:
+            with urllib.request.urlopen(request, timeout=timeout or self.timeout) as response:
+                return response.status, dict(response.headers), ""
+        except urllib.error.HTTPError as exc:
+            return exc.code, dict(exc.headers or {}), f"HTTP {exc.code} {exc.reason}"
+        except (urllib.error.URLError, OSError, ValueError) as exc:
+            return 0, {}, str(getattr(exc, "reason", exc))
+
     def json(self, url: str, timeout: float | None = None) -> tuple[dict | None, str]:
         status, body, error = self.request(url, timeout=timeout, headers={"Accept": "application/json"})
         if status == 0:
@@ -140,14 +151,15 @@ def probe_stream_url(checker: Checker, url: str, label: str) -> None:
     if not url:
         checker.add(label, FAIL, "empty stream URL")
         return
-    status, _body, error = checker.request(url, timeout=min(4.0, checker.timeout), headers={"Accept": "*/*"})
+    status, headers, error = checker.header_probe(url, timeout=min(4.0, checker.timeout))
     if status == 0:
         checker.add(label, FAIL, f"not reachable: {error}")
         return
     if status >= 400:
-        checker.add(label, FAIL, f"HTTP {status}")
+        checker.add(label, FAIL, f"HTTP {status} {error}")
         return
-    checker.add(label, PASS, f"HTTP {status}")
+    content_type = headers.get("Content-Type", "") or headers.get("content-type", "")
+    checker.add(label, PASS, f"HTTP {status} {content_type}".strip())
 
 
 def probe_orion(checker: Checker, base_url: str) -> None:
