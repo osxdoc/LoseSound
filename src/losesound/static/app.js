@@ -389,6 +389,13 @@
     const kind = errors ? "error" : warnings ? "warn" : "ok";
     setHealth(kind, errors ? t("degraded") : warnings ? t("degraded") : t("ready"));
 
+    if (setup.ready && findings.length === 0) {
+      banner.hidden = true;
+      banner.innerHTML = "";
+      setHealth("ok", t("ready"));
+      return;
+    }
+
     const aftertouch = setup.aftertouch || {};
     const version = aftertouch.version || t("unknown");
     const registry = aftertouch.registryReachable ? t("available") : t("unavailable");

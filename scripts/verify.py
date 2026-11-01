@@ -194,11 +194,11 @@ def classify_preset(checker: Checker, slot: int, preset: dict, proxy_host: str, 
     if location.startswith("/station?data="):
         checker.add(label, PASS, "AfterTouch Orion station location (relative)")
         return
-    if location.rstrip("/").endswith(".json"):
-        if "://" not in location:
+    parsed = urllib.parse.urlsplit(location)
+    if parsed.path.rstrip("/").endswith(".json"):
+        if parsed.scheme not in ("http", "https"):
             checker.add(label, WARN, f"relative JSON location: {location}")
             return
-        parsed = urllib.parse.urlsplit(location)
         if proxy_host and parsed.hostname != proxy_host:
             checker.add(label, WARN, f"points at {parsed.hostname}, not at this proxy ({proxy_host})")
         data, error = checker.json(location, timeout=4.0)
