@@ -53,8 +53,8 @@ window.LOSESOUND_I18N = {
 
     modeAuto: "Auto",
     modeRelay: "Relay (via LoseSound)",
-    modeSpeaker: "Direct (speaker fetches stream)",
-    modeRadioBrowser: "Radio Browser (no local service)",
+    modeSpeaker: "Direct (no relay)",
+    modeRadioBrowser: "Radio Browser",
     modeOrion: "AfterTouch station",
     modeUnknown: "Unknown",
     modeAutoHelp: "Use the recommendation from the last stream check.",
@@ -268,8 +268,8 @@ window.LOSESOUND_I18N = {
 
     modeAuto: "Auto",
     modeRelay: "Relay (über LoseSound)",
-    modeSpeaker: "Direkt (Speaker holt Stream)",
-    modeRadioBrowser: "Radio Browser (ohne lokalen Dienst)",
+    modeSpeaker: "Direkt (ohne Relay)",
+    modeRadioBrowser: "Radio Browser",
     modeOrion: "AfterTouch-Station",
     modeUnknown: "Unbekannt",
     modeAutoHelp: "Nutzt die Empfehlung der letzten Stream-Prüfung.",

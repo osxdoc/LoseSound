@@ -71,6 +71,8 @@ LoseSound offers four ways to satisfy the speaker. The mode is chosen per preset
   registry).
 - Requires AfterTouch with a working Orion endpoint. The setup banner probes it and offers this
   mode only when available.
+- Verified on a SoundTouch 20 with firmware 27.0.6 and AfterTouch v0.138.1: the speaker follows
+  the dispatcher redirect itself, and the preset keeps playing with no LoseSound request.
 
 ## `auto`
 

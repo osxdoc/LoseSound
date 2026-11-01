@@ -15,6 +15,11 @@ cloud.
 > work through Bose. AfterTouch restores that locally. LoseSound adds a station catalogue, a
 > preset editor and diagnostics on top.
 
+![LoseSound web UI](docs/screenshots/presets.png)
+
+Verified on a SoundTouch 20 (firmware 27.0.6) with AfterTouch 0.138.1: all six presets play in
+`orion`/`speaker` mode with **no audio relay**. `scripts/verify.py` reports 29 passed checks.
+
 ## Why this project exists
 
 The SoundTouch API looks simple, but one detail trips almost everyone up:
@@ -142,6 +147,8 @@ python3 scripts/verify.py                 # reads .env
 python3 scripts/verify.py --service-host 192.168.1.10 --speaker-ip 192.168.1.50
 ```
 
+![LoseSound status page](docs/screenshots/status.png)
+
 The script is read-only and checks the service, AfterTouch, the speaker, the BMX registry, every
 preset location and every station description. Exit codes: `0` ok, `1` failed check, `2`
 undecided/unreachable. In the web UI the same information appears as a banner with concrete hints.
@@ -166,7 +173,7 @@ A few classics (details in [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)):
 - **Radio sources disappear after a reboot.** They are registered from `Sources.xml` only at boot.
   Reboot the speaker, or send a `sourcesUpdated` notification.
 - **Relay stutters.** Increase `BUFFER_SECONDS`, check the upstream with **Check stream**, or use
-  Direct if the station URL is stable.
+  Direct/AfterTouch if the station URL is stable.
 
 ## Development
 
