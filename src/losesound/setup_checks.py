@@ -259,6 +259,11 @@ def probe_speaker(speaker_ip: str, speaker_port: int = 8090, timeout: float = 4.
     except SpeakerError as exc:
         result["message"] = f"Could not read sources: {exc}"
 
+    try:
+        result["presets"] = client.presets()
+    except SpeakerError:
+        result["presets"] = {}
+
     if result["currentMargeUrl"]:
         status, _body, error = _http_get(
             result["currentMargeUrl"], timeout=timeout, headers={"Accept": "application/xml"}
