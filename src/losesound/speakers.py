@@ -130,6 +130,8 @@ class SpeakerClient:
                 slot = int(attrs.get("id", ""))
             except ValueError:
                 continue
+            if not 1 <= slot <= 6:
+                continue
             content = None
             for child in node.iter():
                 if _local(child.tag) == "contentitem":

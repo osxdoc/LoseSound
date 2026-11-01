@@ -158,6 +158,8 @@ class RelaySession:
         self._rate_samples: collections.deque[tuple[float, int]] = collections.deque(maxlen=128)
         self._last_in_at: float | None = None
         self._last_out_at: float | None = None
+        self._last_in_wall: float | None = None
+        self._last_out_wall: float | None = None
         self._last_fill_log = 0.0
         self._last_publish = 0.0
         self._last_health = time.monotonic()
@@ -174,20 +176,21 @@ class RelaySession:
         return self.rate_configured
 
     def _metrics(self, state: str | None = None) -> dict:
-        now = time.time()
+        now = time.monotonic()
         with self.buffer_lock:
             buffered_bytes = self.buffer_bytes
             chunks = len(self.buffer)
             bytes_in = self.bytes_in
             bytes_out = self.bytes_out
             last_in = self._last_in_at
-            last_out = self._last_out_at
+            last_in_wall = self._last_in_wall
+            last_out_wall = self._last_out_wall
             underrun_started = self.underrun_started_at
             underrun_count = self.underrun_count
             max_underrun_ms = self.max_underrun_ms
             overflow_count = self.overflow_count
 
-        elapsed = max(0.001, time.monotonic() - self._started)
+        elapsed = max(0.001, now - self._started)
         current_underrun_ms = 0
         if underrun_started is not None:
             current_underrun_ms = int((now - underrun_started) * 1000)
@@ -206,8 +209,8 @@ class RelaySession:
             "upstreamReadGapMs": int((now - last_in) * 1000) if last_in else None,
             "producerBytesPerSecond": round(bytes_in / elapsed),
             "consumerBytesPerSecond": round(bytes_out / elapsed),
-            "lastBytesInAt": int(last_in) if last_in else None,
-            "lastBytesOutAt": int(last_out) if last_out else None,
+            "lastBytesInAt": int(last_in_wall) if last_in_wall else None,
+            "lastBytesOutAt": int(last_out_wall) if last_out_wall else None,
         }
         if state:
             metrics["state"] = state
@@ -316,6 +319,7 @@ class RelaySession:
                             self.buffer_bytes += len(chunk)
                             self.bytes_in += len(chunk)
                             self._last_in_at = now
+                            self._last_in_wall = time.time()
                             buffered = len(self.buffer)
                         self._sample_rate(len(chunk), now)
                         self.ready.set()
@@ -484,7 +488,8 @@ class RelaySession:
 
         self._set_state("streaming")
         capacity = float(self.buffer_target)
-        tokens = float(min(capacity, buffered))
+        # Send one chunk right away, keep the rest of the prebuffer as cushion.
+        tokens = float(min(capacity, MAX_CHUNK))
         last = time.monotonic()
         underrun_started: float | None = None
 
@@ -515,7 +520,8 @@ class RelaySession:
                         break
                     with self.buffer_lock:
                         self.bytes_out += len(chunk)
-                        self._last_out_at = time.time()
+                        self._last_out_at = now
+                        self._last_out_wall = time.time()
                         buffered_now = self.buffer_bytes
                     if underrun_started is not None:
                         duration_ms = int((now - underrun_started) * 1000)

@@ -122,6 +122,8 @@ def parse_presets(body: bytes) -> dict[int, dict]:
             slot = int(node.attrib.get("id", ""))
         except ValueError:
             continue
+        if not 1 <= slot <= 6:
+            continue
         content = next((child for child in node.iter() if local_name(child.tag) == "contentitem"), None)
         if content is None:
             continue

@@ -584,6 +584,7 @@ class LoseSoundHandler(BaseHTTPRequestHandler):
     def _api_setup_status(self, query: dict) -> None:
         refresh = (query.get("refresh") or ["0"])[0].lower() in ("1", "true", "yes")
         aftertouch = self.ctx.aftertouch(refresh=refresh)
+        stations = self.ctx.store.snapshot().get("stations", {})
         status = self.ctx.setup_cache.get(
             lambda: build_setup_status(
                 base_url=self.ctx.base_url,
@@ -592,6 +593,7 @@ class LoseSoundHandler(BaseHTTPRequestHandler):
                 speaker_ips=self.ctx.speaker_ips,
                 speaker_port=self.ctx.speaker_port,
                 aftertouch=aftertouch,
+                stations=stations,
                 refresh=refresh,
             ),
             refresh=refresh,

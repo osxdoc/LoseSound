@@ -115,3 +115,43 @@ def test_build_setup_status_error_when_speaker_unreachable():
     assert "aftertouch_unreachable" in codes
     assert "speaker_unreachable" in codes
     assert status["ready"] is False
+
+
+def test_build_setup_status_detects_preset_drift():
+    with FakeSpeaker() as speaker, FakeAfterTouch() as aftertouch:
+        speaker.state["marge_url"] = aftertouch.url + "/marge"
+        speaker.state["presets"] = {
+            1: {"source": "LOCAL_INTERNET_RADIO", "type": "stationurl", "location": "http://x/1.json", "name": "Other"},
+        }
+        stations = {"hr3": {"name": "HR3", "dispatcherUrl": "https://example.invalid/hr3", "presets": [1]}}
+        status = build_setup_status(
+            base_url="http://127.0.0.1:8092",
+            aftertouch_url=aftertouch.url,
+            speaker_ip="127.0.0.1",
+            speaker_ips=["127.0.0.1"],
+            speaker_port=speaker.port,
+            aftertouch=probe_aftertouch(aftertouch.url, timeout=2),
+            stations=stations,
+        )
+        codes = {finding["code"] for finding in status["findings"]}
+        assert "preset_drift" in codes
+
+
+def test_build_setup_status_without_preset_drift():
+    with FakeSpeaker() as speaker, FakeAfterTouch() as aftertouch:
+        speaker.state["marge_url"] = aftertouch.url + "/marge"
+        speaker.state["presets"] = {
+            1: {"source": "LOCAL_INTERNET_RADIO", "type": "stationurl", "location": "http://x/1.json", "name": "HR3"},
+        }
+        stations = {"hr3": {"name": "HR3", "dispatcherUrl": "https://example.invalid/hr3", "presets": [1]}}
+        status = build_setup_status(
+            base_url="http://127.0.0.1:8092",
+            aftertouch_url=aftertouch.url,
+            speaker_ip="127.0.0.1",
+            speaker_ips=["127.0.0.1"],
+            speaker_port=speaker.port,
+            aftertouch=probe_aftertouch(aftertouch.url, timeout=2),
+            stations=stations,
+        )
+        codes = {finding["code"] for finding in status["findings"]}
+        assert "preset_drift" not in codes

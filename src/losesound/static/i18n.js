@@ -152,6 +152,7 @@ window.LOSESOUND_I18N = {
     registry_unreachable: "The BMX service registry cannot be read.",
     orion_unavailable: "The Orion station endpoint is advertised but does not answer.",
     radio_browser_unavailable: "radio-browser.info is not reachable from this server.",
+    preset_drift: "The preset buttons on the speaker differ from this configuration.",
     hint_speaker_unreachable: "Check SPEAKER_IP, the LAN connection and that the speaker is powered on.",
     hint_marge_unreachable: "Upgrade AfterTouch to 0.99 or newer and migrate the speaker again with the plain base URL (no /marge suffix).",
     hint_sources_missing: "Send sourcesUpdated or reboot the speaker. Radio sources are registered from Sources.xml at boot.",
@@ -161,6 +162,7 @@ window.LOSESOUND_I18N = {
     hint_registry_unreachable: "Without the registry the speaker cannot resolve TuneIn, Radio Browser or Orion.",
     hint_orion_unavailable: "Use Direct or Relay mode until AfterTouch is updated.",
     hint_radio_browser_unavailable: "Radio Browser presets need internet access from the speaker; other modes are unaffected.",
+    hint_preset_drift: "Set the affected slots again. If they keep disappearing, check the AfterTouch migration and marge URL.",
 
     settingsTitle: "Stream settings",
     bufferSeconds: "Buffer (seconds)",
@@ -365,6 +367,7 @@ window.LOSESOUND_I18N = {
     registry_unreachable: "Die BMX-Dienst-Registry ist nicht lesbar.",
     orion_unavailable: "Der Orion-Station-Endpoint wird beworben, antwortet aber nicht.",
     radio_browser_unavailable: "radio-browser.info ist von diesem Server aus nicht erreichbar.",
+    preset_drift: "Die Preset-Tasten am Speaker weichen von dieser Konfiguration ab.",
     hint_speaker_unreachable: "SPEAKER_IP, Netzwerk und Stromversorgung des Speakers prüfen.",
     hint_marge_unreachable: "AfterTouch auf 0.99 oder neuer aktualisieren und den Speaker mit der reinen Basis-URL (ohne /marge) neu migrieren.",
     hint_sources_missing: "sourcesUpdated senden oder den Speaker neu starten. Radioquellen werden beim Boot aus Sources.xml registriert.",
@@ -374,6 +377,7 @@ window.LOSESOUND_I18N = {
     hint_registry_unreachable: "Ohne Registry kann der Speaker TuneIn, Radio Browser und Orion nicht auflösen.",
     hint_orion_unavailable: "Bis zum AfterTouch-Update die Modi Direkt oder Relay verwenden.",
     hint_radio_browser_unavailable: "Radio-Browser-Presets brauchen Internet am Speaker; andere Modi sind nicht betroffen.",
+    hint_preset_drift: "Die betroffenen Slots neu setzen. Verschwinden sie wieder, AfterTouch-Migration und marge-URL prüfen.",
 
     settingsTitle: "Stream-Einstellungen",
     bufferSeconds: "Puffer (Sekunden)",

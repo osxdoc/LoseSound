@@ -220,6 +220,7 @@ def probe_speaker(speaker_ip: str, speaker_port: int = 8090, timeout: float = 4.
         "margeStatus": 0,
         "margeError": "",
         "sources": [],
+        "presets": {},
         "sourcesReady": False,
         "missingSources": list(REQUIRED_SOURCES),
         "message": "",
@@ -318,6 +319,37 @@ def _speaker_findings(device: dict, aftertouch_host: str) -> list[dict]:
     return findings
 
 
+def _preset_drift(stations: dict, device: dict) -> list[dict]:
+    """Compare the configured preset buttons with what the speaker actually holds."""
+    expected: dict[int, str] = {}
+    for station in stations.values():
+        for slot in station.get("presets", []):
+            expected[int(slot)] = str(station.get("name") or "")
+    actual = {slot: str(item.get("itemName") or "") for slot, item in (device.get("presets") or {}).items()}
+    if not expected and not actual:
+        return []
+    problems = []
+    for slot in range(1, 7):
+        want = expected.get(slot)
+        have = actual.get(slot)
+        if want and not have:
+            problems.append(f"{slot}: expected {want}, speaker is empty")
+        elif have and not want:
+            problems.append(f"{slot}: speaker has {have or 'an item'}, not configured here")
+        elif want and have and want.casefold() != have.casefold():
+            problems.append(f"{slot}: expected {want}, speaker has {have}")
+    if not problems:
+        return []
+    return [
+        {
+            "severity": "warning",
+            "code": "preset_drift",
+            "message": "Preset buttons on the speaker differ from this configuration: " + "; ".join(problems),
+            "hint": "Set the affected slots again. If the speaker keeps losing them, check the AfterTouch migration and the marge URL.",
+        }
+    ]
+
+
 def build_setup_status(
     *,
     base_url: str,
@@ -326,6 +358,7 @@ def build_setup_status(
     speaker_ips: list[str],
     speaker_port: int,
     aftertouch: dict,
+    stations: dict | None = None,
     refresh: bool = False,
 ) -> dict:
     targets = [ip for ip in dict.fromkeys(speaker_ips or [speaker_ip]) if ip]
@@ -394,6 +427,8 @@ def build_setup_status(
     aftertouch_host = urllib.parse.urlsplit(aftertouch_url).hostname or ""
     for device in devices:
         findings.extend(_speaker_findings(device, aftertouch_host))
+        if stations is not None and device["speakerIp"] == speaker_ip:
+            findings.extend(_preset_drift(stations, device))
 
     ready = not any(finding["severity"] == "error" for finding in findings)
     return {
