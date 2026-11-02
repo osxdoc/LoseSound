@@ -40,6 +40,10 @@ def test_health_index_and_static(tmp_path):
         assert status == 200
         assert "javascript" in content_type
 
+        status, _data, content_type = request(app.port, "/static/archivo-var.woff2")
+        assert status == 200
+        assert content_type == "font/woff2"
+
         status, _data, _content_type = request(app.port, "/static/../etc/passwd")
         assert status == 404
     finally:

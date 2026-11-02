@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning follows
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+
+- Redesigned the web UI around the six preset buttons: a hardware-style preset deck, a now-playing
+  display, an inline preset editor and station/catalogue lists that stack on phones.
+- Bundled the Archivo variable font with the app so the interface keeps its typography offline.
+
 ## [1.0.1] - 2026-11-01
 
 ### Fixed

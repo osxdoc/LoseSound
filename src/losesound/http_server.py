@@ -38,6 +38,8 @@ STATIC_FILES = {
     "app.js": "application/javascript; charset=utf-8",
     "i18n.js": "application/javascript; charset=utf-8",
     "favicon.svg": "image/svg+xml",
+    "archivo-var.woff2": "font/woff2",
+    "archivo-OFL.txt": "text/plain; charset=utf-8",
 }
 JSON_LIMIT = 1_000_000
 SLOT_RE = re.compile(

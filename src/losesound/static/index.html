@@ -6,54 +6,74 @@
   <meta name="color-scheme" content="dark">
   <title>LoseSound</title>
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="preload" href="/static/archivo-var.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-  <div class="container">
-    <header class="topbar">
+  <div class="shell">
+    <a class="skip-link" href="#main" data-i18n="skipToContent">Skip to content</a>
+    <header class="masthead">
       <div class="brand">
-        <span class="logo" aria-hidden="true"></span>
-        <div>
-          <h1 data-i18n="appName">LoseSound</h1>
-          <p class="subtitle" data-i18n="subtitle"></p>
-        </div>
+        <span class="mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span>
+        <h1 class="wordmark">LoseSound</h1>
+        <span class="tagline" data-i18n="subtitle"></span>
       </div>
-      <div class="top-actions">
+      <div class="masthead-tools">
         <div class="health" id="health">
-          <span class="dot" id="healthDot"></span>
+          <span class="led" id="healthDot" aria-hidden="true"></span>
           <span id="healthLabel" data-i18n="loading"></span>
         </div>
-        <button class="icon-btn" id="languageBtn" type="button" aria-label="Language">DE</button>
-        <button class="icon-btn" id="settingsBtn" type="button" data-i18n-title="settings">&#9881;</button>
+        <button class="quiet-btn" id="languageBtn" type="button" data-i18n-title="language">DE</button>
+        <button class="quiet-btn settings-btn" id="settingsBtn" type="button" data-i18n-title="settings" data-i18n-aria="settings" aria-label="Settings" aria-haspopup="dialog" aria-expanded="false" aria-controls="settingsPanel">
+          <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" focusable="false">
+            <path d="M10 6.6a3.4 3.4 0 1 0 0 6.8 3.4 3.4 0 0 0 0-6.8Zm0 1.6a1.8 1.8 0 1 1 0 3.6 1.8 1.8 0 0 1 0-3.6Z" fill="currentColor"/>
+            <path d="M8.6 1.6h2.8l.4 1.9a6.9 6.9 0 0 1 1.4.8l1.8-.7 1.4 2.4-1.4 1.3c.1.5.2 1 .2 1.5s-.1 1-.2 1.5l1.4 1.3-1.4 2.4-1.8-.7c-.4.3-.9.6-1.4.8l-.4 1.9H8.6l-.4-1.9a6.9 6.9 0 0 1-1.4-.8l-1.8.7-1.4-2.4 1.4-1.3A6 6 0 0 1 4.8 9c0-.5.1-1 .2-1.5L3.6 6.2l1.4-2.4 1.8.7c.4-.3.9-.6 1.4-.8l.4-1.9Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round" opacity=".75"/>
+          </svg>
+        </button>
       </div>
     </header>
 
-    <div id="setupBanner" class="banner" hidden></div>
+    <div id="setupBanner" class="notice" hidden></div>
     <div id="message" class="toast" hidden role="status"></div>
 
-    <nav class="tabs" id="tabs">
-      <button type="button" class="tab active" data-tab="presets" data-i18n="tabPresets"></button>
-      <button type="button" class="tab" data-tab="catalog" data-i18n="tabCatalog"></button>
-      <button type="button" class="tab" data-tab="status" data-i18n="tabStatus"></button>
+    <nav class="tabs" id="tabs" role="tablist" data-i18n-aria="views" aria-label="Views">
+      <button type="button" class="tab active" id="tab-presets" role="tab" aria-selected="true" aria-controls="view-presets" data-tab="presets" data-i18n="tabPresets"></button>
+      <button type="button" class="tab" id="tab-catalog" role="tab" aria-selected="false" aria-controls="view-catalog" data-tab="catalog" data-i18n="tabCatalog"></button>
+      <button type="button" class="tab" id="tab-status" role="tab" aria-selected="false" aria-controls="view-status" data-tab="status" data-i18n="tabStatus"></button>
     </nav>
 
-    <main id="main">
-      <section class="view active" id="view-presets">
-        <div class="card">
-          <div class="card-head">
-            <h2 data-i18n="presetsTitle"></h2>
-            <p class="hint" data-i18n="presetsHint"></p>
+    <section class="display is-idle" data-i18n-aria="playback" aria-label="Playback">
+      <div class="display-body">
+        <span class="display-label" data-i18n="nowPlaying"></span>
+        <span class="display-title" id="displayTitle"></span>
+        <span class="display-sub" id="displaySub"></span>
+      </div>
+      <div class="display-side">
+        <span class="display-speaker" id="displaySpeaker"></span>
+        <span class="display-ip mono" id="displayIp"></span>
+      </div>
+    </section>
+
+    <main id="main" tabindex="-1">
+      <section class="view active" id="view-presets" role="tabpanel" aria-labelledby="tab-presets">
+        <section class="panel" data-i18n-aria="presetsTitle" aria-label="Preset buttons 1 - 6">
+          <div class="deck" id="presetDeck"></div>
+          <div class="editor" id="presetEditor" role="region" hidden></div>
+        </section>
+
+        <section class="block">
+          <div class="block-head">
+            <h2 data-i18n="stationsTitle"></h2>
+            <p class="hint" data-i18n="stationsHint"></p>
           </div>
-          <div class="table-wrap" id="presetTable"></div>
-        </div>
+          <div id="stationList" class="rack"></div>
+        </section>
 
-        <div class="card">
-          <h2 data-i18n="stationsTitle"></h2>
-          <div class="table-wrap" id="stationList"></div>
-        </div>
-
-        <div class="card">
-          <h2 data-i18n="addStationTitle"></h2>
+        <section class="block add-station">
+          <div class="block-head">
+            <h2 data-i18n="addStationTitle"></h2>
+            <p class="hint" data-i18n="addStationHelp"></p>
+          </div>
           <form id="addStationForm" class="form-row" autocomplete="off">
             <label class="field grow">
               <span data-i18n="displayName"></span>
@@ -65,17 +85,16 @@
             </label>
             <button class="btn primary" type="submit" data-i18n="add"></button>
           </form>
-          <p class="hint" data-i18n="addStationHelp"></p>
-        </div>
+        </section>
       </section>
 
-      <section class="view" id="view-catalog">
-        <div class="card">
-          <div class="card-head">
+      <section class="view" id="view-catalog" role="tabpanel" aria-labelledby="tab-catalog" hidden>
+        <section class="block">
+          <div class="block-head">
             <h2 data-i18n="catalogTitle"></h2>
             <p class="hint" data-i18n="catalogHint"></p>
           </div>
-          <form id="catalogForm" class="form-row" autocomplete="off">
+          <form id="catalogForm" class="form-row search-band" autocomplete="off">
             <label class="field grow2">
               <span data-i18n="query"></span>
               <input id="catalogQuery" data-i18n-placeholder="queryPlaceholder">
@@ -94,19 +113,25 @@
             </label>
             <button class="btn primary" type="submit" data-i18n="search"></button>
           </form>
-          <div class="table-wrap" id="catalogResults"></div>
-        </div>
+          <div id="catalogResults" class="rack"></div>
+        </section>
       </section>
 
-      <section class="view" id="view-status">
-        <div class="card">
-          <h2 data-i18n="speakersTitle"></h2>
+      <section class="view" id="view-status" role="tabpanel" aria-labelledby="tab-status" hidden>
+        <section class="block">
+          <div class="block-head">
+            <h2 data-i18n="speakersTitle"></h2>
+            <p class="hint" data-i18n="speakersHint"></p>
+          </div>
           <div id="speakerStatus"></div>
-        </div>
-        <div class="card">
-          <h2 data-i18n="proxyTitle"></h2>
-          <div id="proxyStatus"></div>
-        </div>
+        </section>
+        <section class="block">
+          <div class="block-head">
+            <h2 data-i18n="proxyTitle"></h2>
+            <p class="hint" data-i18n="proxyHint"></p>
+          </div>
+          <div id="proxyStatus" class="rack"></div>
+        </section>
       </section>
     </main>
 
@@ -120,10 +145,10 @@
   </div>
 
   <div class="backdrop" id="settingsBackdrop" hidden></div>
-  <aside class="panel" id="settingsPanel" hidden>
-    <div class="panel-head">
-      <h2 data-i18n="settingsTitle"></h2>
-      <button class="icon-btn" id="settingsClose" type="button" aria-label="Close">&#10005;</button>
+  <aside class="panel-drawer" id="settingsPanel" role="dialog" aria-modal="true" aria-labelledby="settingsTitle" hidden>
+    <div class="drawer-head">
+      <h2 id="settingsTitle" data-i18n="settingsTitle"></h2>
+      <button class="quiet-btn" id="settingsClose" type="button" data-i18n-aria="close" aria-label="Close">&#10005;</button>
     </div>
     <form id="settingsForm" class="stack" autocomplete="off">
       <label class="field">
